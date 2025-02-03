@@ -30,4 +30,23 @@ class SettingsService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString(_keySiteName);
   }
+
+  Future<Set<String>> getPinnedModels() async {
+     final prefs = await SharedPreferences.getInstance();
+     return Set.from(prefs.getStringList('pinnedModels') ?? []);
+   }
+
+   Future<void> addPinnedModel(String modelId) async {
+     final prefs = await SharedPreferences.getInstance();
+     final pinned = await getPinnedModels();
+     pinned.add(modelId);
+     await prefs.setStringList('pinnedModels', pinned.toList());
+   }
+
+   Future<void> removePinnedModel(String modelId) async {
+     final prefs = await SharedPreferences.getInstance();
+     final pinned = await getPinnedModels();
+     pinned.remove(modelId);
+     await prefs.setStringList('pinnedModels', pinned.toList());
+   }
 }
