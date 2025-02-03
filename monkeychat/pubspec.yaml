@@ -36,6 +36,10 @@ dependencies:
   cupertino_icons: ^1.0.8
   sqflite:
   provider:
+  http:
+  shared_preferences:
+  cached_network_image:
+  flutter_riverpod:
 
 dev_dependencies:
   flutter_test:

@@ -2,6 +2,8 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/chat.dart';
 import '../models/message.dart';
+import '../models/llm_model.dart';
+import 'dart:convert';
 
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._private();
@@ -29,6 +31,7 @@ class DatabaseHelper {
       CREATE TABLE chats(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
+        model_id TEXT NOT NULL,
         created_at TEXT NOT NULL
       )
     ''');
@@ -43,14 +46,64 @@ class DatabaseHelper {
         FOREIGN KEY(chat_id) REFERENCES chats(id)
       )
     ''');
+
+    await db.execute('''
+      CREATE TABLE cached_models(
+        model_id TEXT PRIMARY KEY,
+        data TEXT NOT NULL,
+        cached_at TEXT NOT NULL
+      )
+    ''');
+
+    print('DBHELPER: Database tables created');
+  }
+
+  Future<void> clearAll() async {
+    final db = await instance.database;
+
+    // Clear all tables
+    await db.delete('chats');
+    await db.delete('messages');
+    await db.delete('cached_models');
+
+    print('DBHELPER: All data cleared from tables');
+
+    // Close the database
+    await db.close();
+    _database = null;
+
+    // Delete the database file
+    final path = join(await getDatabasesPath(), 'chat_database.db');
+    await deleteDatabase(path);
+
+    print('DBHELPER: Database file deleted');
   }
 
   Future<int> insertChat(Chat chat) async {
     final db = await instance.database;
     return db.insert('chats', {
       'title': chat.title,
+      'model_id': chat.modelId,
       'created_at': chat.createdAt.toIso8601String(),
     });
+  }
+
+  Future<List<LLMModel>> getCachedModels() async {
+    final db = await instance.database;
+    final maps = await db.query('cached_models');
+    return maps.map((map) => LLMModel.fromJson(jsonDecode(map['data'] as String))).toList();
+  }
+
+  Future<void> cacheModels(List<LLMModel> models) async {
+    final db = await instance.database;
+    await db.delete('cached_models');
+    for (final model in models) {
+      await db.insert('cached_models', {
+        'model_id': model.id,
+        'data': jsonEncode(model.toJson()),
+        'cached_at': DateTime.now().toIso8601String(),
+      });
+    }
   }
 
   Future<int> insertMessage(Message message) async {
