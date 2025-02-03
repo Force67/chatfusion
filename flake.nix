@@ -6,91 +6,101 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:  # Added 'self' parameter here
+  outputs = { self, nixpkgs, flake-utils }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
           inherit system;
-          config = {
-            android_sdk.accept_license = true;
-            allowUnfree = true;
-          };
+          config.allowUnfree = true;
         };
+
+        gcc = pkgs.gcc;
+        gcc-unwrapped = pkgs.gcc-unwrapped;
+        glibc = pkgs.glibc;
+
+        # Explicit paths to critical compiler components
+        crt1Path = "${glibc}/lib/crt1.o";
+        crtiPath = "${glibc}/lib/crti.o";
+        crtnPath = "${glibc}/lib/crtn.o";
+        crtbeginPath = "${gcc-unwrapped}/lib/gcc/${pkgs.targetPlatform.config}/${gcc-unwrapped.version}/crtbeginS.o";
+        crtendPath = "${gcc-unwrapped}/lib/gcc/${pkgs.targetPlatform.config}/${gcc-unwrapped.version}/crtendS.o";
+
       in
       {
         devShell = pkgs.mkShell {
-          buildInputs = with pkgs; [
+          nativeBuildInputs = with pkgs; [
             flutter
-
-            androidsdk
-            android-tools
-            android-studio
-
-
-            gradle
-            jdk11
             cmake
-            dart
-            glib
-            glib.dev
-            google-chrome
+            ninja
+            pkg-config
             gtk3
             gtk3.dev
-            lcov
-            ninja
-            nvfetcher
-            pkg-config
             sqlite
-            sqlite-web
-            nodePackages.firebase-tools
-            sd
-            fd
-
-            # Linux-specific dependencies
             xorg.libX11
-            xorg.libXcursor
-            xorg.libXrandr
-            xorg.libXi
             libGL
-            pcre2
-            libsysprof-capture  # Add this line
-            util-linux
-
-            # Add GCC and related tools
+            lcov
+            jdk11
             gcc
             gcc-unwrapped
             binutils
-            gnumake
+          ];
 
-            protobuf
-            protoc-gen-dart
+          buildInputs = with pkgs; [
+            glib
+            glib.dev
+            gtk3
+            gdk-pixbuf
+            pango
+            atk
+            harfbuzz
+            libepoxy
           ];
 
           shellHook = ''
-            # Set up paths for GCC and standard C library headers
-            export C_INCLUDE_PATH="${pkgs.gcc-unwrapped}/lib/gcc/${pkgs.stdenv.hostPlatform.config}/${pkgs.gcc-unwrapped.version}/include:${pkgs.glibc.dev}/include:${pkgs.glib.dev}/include/glib-2.0:${pkgs.glib.out}/lib/glib-2.0/include:$C_INCLUDE_PATH"
-            export CPLUS_INCLUDE_PATH="$C_INCLUDE_PATH:${pkgs.gcc-unwrapped}/include/c++/${pkgs.gcc-unwrapped.version}:${pkgs.gcc-unwrapped}/include/c++/${pkgs.gcc-unwrapped.version}/${pkgs.stdenv.hostPlatform.config}:$CPLUS_INCLUDE_PATH"
+            # Total environment isolation
+            export PATH="${gcc}/bin:${pkgs.binutils}/bin:$PATH"
+            unset LD_LIBRARY_PATH
 
-            # Set paths for glibc and gcc
-            export GLIBC_LIB=${pkgs.glibc}/lib
-            export GCC_LIB=${pkgs.gcc-unwrapped}/lib/gcc/${pkgs.stdenv.hostPlatform.config}/${pkgs.gcc-unwrapped.version}
+            # Explicit compiler configuration
+            export CC="${gcc}/bin/gcc"
+            export CXX="${gcc}/bin/g++"
+            export LD="${gcc}/bin/ld"
 
-            # Set compiler and linker flags
-            export CFLAGS="-B$GLIBC_LIB -B$GCC_LIB -I${pkgs.glibc.dev}/include $CFLAGS"
-            export CXXFLAGS="$CFLAGS"
-            export LDFLAGS="-B$GLIBC_LIB -B$GCC_LIB -L${pkgs.gcc-unwrapped.lib}/lib -L${pkgs.glibc}/lib $LDFLAGS"
-            export NIX_LDFLAGS="-L$GLIBC_LIB -L$GCC_LIB -L${pkgs.gcc-unwrapped.lib}/lib -L${pkgs.glibc}/lib -rpath ${pkgs.gcc-unwrapped.lib}/lib -rpath ${pkgs.glibc}/lib $NIX_LDFLAGS"
+            # Manual CRT file specification
+            export CRTI="${crtiPath}"
+            export CRTN="${crtnPath}"
+            export CRT1="${crt1Path}"
+            export CRTBEGIN="${crtbeginPath}"
+            export CRTEND="${crtendPath}"
 
-            # Set CMake compiler and library paths
-            export CMAKE_C_COMPILER=${pkgs.gcc}/bin/gcc
-            export CMAKE_CXX_COMPILER=${pkgs.gcc}/bin/g++
-            export LD_LIBRARY_PATH="${pkgs.gcc-unwrapped.lib}/lib:${pkgs.glibc}/lib:${pkgs.pcre2}/lib:$LD_LIBRARY_PATH"
-            export PKG_CONFIG_PATH="${pkgs.pcre2}/lib/pkgconfig:${pkgs.glib.dev}/lib/pkgconfig:$PKG_CONFIG_PATH"
+            # Critical path configurations
+            export LIBRARY_PATH="${gcc-unwrapped}/lib:${gcc-unwrapped}/lib/gcc/${pkgs.targetPlatform.config}/${gcc-unwrapped.version}:${glibc}/lib"
+            export C_INCLUDE_PATH="${glibc.dev}/include:${gcc-unwrapped}/include"
+            export CPLUS_INCLUDE_PATH="${glibc.dev}/include:${gcc-unwrapped}/include/c++/${gcc-unwrapped.version}"
 
-            # Configure Flutter settings
-            mkdir -p $HOME/.flutter_settings
-            echo '{"enable-linux-desktop":true,"linux-desktop-cc":"${pkgs.gcc}/bin/gcc","linux-desktop-cxx":"${pkgs.gcc}/bin/g++"}' > $HOME/.flutter_settings/settings.json
+            # Hardcoded linker flags
+            export LDFLAGS="\
+              -B${gcc-unwrapped}/lib/gcc/${pkgs.targetPlatform.config}/${gcc-unwrapped.version} \
+              -B${glibc}/lib \
+              -L${gcc-unwrapped}/lib \
+              -L${glibc}/lib \
+              -Wl,${crt1Path} \
+              -Wl,${crtiPath} \
+              -Wl,${crtbeginPath} \
+              -Wl,${crtendPath} \
+              -Wl,${crtnPath} \
+              -Wl,--dynamic-linker=${glibc}/lib/ld-linux-x86-64.so.2"
+
+            # CMake configuration
+            export CMAKE_PREFIX_PATH="${gcc}:${gcc-unwrapped}:${glibc}"
+
+
+            echo "Isolated environment with GCC ${gcc.version}"
+            echo "CRT files:"
+            echo "  crtbegin: ${crtbeginPath}"
+            echo "  crtend: ${crtendPath}"
           '';
         };
-      });
+      }
+    );
 }
