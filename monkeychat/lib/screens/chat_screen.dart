@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'settings_screen.dart';
 import '../models/llm_model.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../widgets/model_selection_dialog.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -51,7 +52,8 @@ class _ChatScreenState extends State<ChatScreen> {
           'Content-Type': 'application/json',
         },
         body: jsonEncode({
-          'model': 'openai/gpt-3.5-turbo',
+        //  'model': 'openai/gpt-3.5-turbo',
+          'model': _selectedModel!.id,
           'messages': [
             {'role': 'user', 'content': userMessage}
           ],
@@ -122,144 +124,16 @@ class _ChatScreenState extends State<ChatScreen> {
     final models = await ModelService().getModels();
 
     showDialog(
-      context: context,
-      builder: (context) => Dialog(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 600, maxHeight: 600),
-          child: StatefulBuilder(
-            builder: (context, setState) {
-              String searchQuery = '';
-
-              return FutureBuilder<Set<String>>(
-                future: _settingsService.getPinnedModels(),
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  final pinnedModelIds = snapshot.data!;
-
-                  final filteredPinned = models
-                      .where((model) =>
-                          pinnedModelIds.contains(model.id) &&
-                          (model.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
-                              model.provider.toLowerCase().contains(searchQuery.toLowerCase()) ||
-                              model.description.toLowerCase().contains(searchQuery.toLowerCase())))
-                      .toList()
-                    ..sort((a, b) => a.name.compareTo(b.name));
-
-                  final filteredOthers = models
-                      .where((model) =>
-                          !pinnedModelIds.contains(model.id) &&
-                          (model.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
-                              model.provider.toLowerCase().contains(searchQuery.toLowerCase()) ||
-                              model.description.toLowerCase().contains(searchQuery.toLowerCase())))
-                      .toList()
-                    ..sort((a, b) => a.name.compareTo(b.name));
-
-                  return Column(
-                    children: [
-                      AppBar(
-                        title: const Text('Select Model'),
-                        actions: [
-                          IconButton(
-                            icon: const Icon(Icons.refresh),
-                            onPressed: () async {
-                              Navigator.pop(context);
-                              final newModels = await ModelService().getModels(forceRefresh: true);
-                              _showModelSelection();
-                            },
-                          ),
-                        ],
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: TextField(
-                          decoration: const InputDecoration(
-                            hintText: 'Search models...',
-                            prefixIcon: Icon(Icons.search),
-                            border: OutlineInputBorder(),
-                          ),
-                          onChanged: (value) {
-                            setState(() => searchQuery = value);
-                          },
-                        ),
-                      ),
-                      Expanded(
-                        child: ListView(
-                          children: [
-                            if (filteredPinned.isNotEmpty) ...[
-                              const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                                child: Text('Pinned Models', style: TextStyle(fontWeight: FontWeight.bold)),
-                              ),
-                              ...filteredPinned.map((model) => _buildModelTile(model, pinnedModelIds, setState)),
-                            ],
-                            if (filteredOthers.isNotEmpty) ...[
-                              const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                                child: Text('All Models', style: TextStyle(fontWeight: FontWeight.bold)),
-                              ),
-                              ...filteredOthers.map((model) => _buildModelTile(model, pinnedModelIds, setState)),
-                            ],
-                            if (filteredPinned.isEmpty && filteredOthers.isEmpty)
-                              const Center(child: Text('No models found')),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              );
+          context: context,
+          builder: (context) => ModelSelectionDialog(
+            settingsService: _settingsService,
+            modelService: ModelService(),
+            onModelSelected: (model) {
+              setState(() => _selectedModel = model);
+              _createNewChat();
             },
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildModelTile(LLMModel model, Set<String> pinnedModelIds, StateSetter setState) {
-    return ListTile(
-      leading: CachedNetworkImage(
-        imageUrl: model.iconUrl,
-        width: 32,
-        height: 32,
-        placeholder: (context, url) => const CircularProgressIndicator(),
-        errorWidget: (context, url, error) => const Icon(Icons.settings),
-      ),
-      title: Text(model.name),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(model.provider),
-          Text(model.description, maxLines: 2, overflow: TextOverflow.ellipsis),
-        ],
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            icon: Icon(
-              pinnedModelIds.contains(model.id) ? Icons.push_pin : Icons.push_pin_outlined,
-              color: pinnedModelIds.contains(model.id) ? Colors.blue : null,
-            ),
-            onPressed: () async {
-              if (pinnedModelIds.contains(model.id)) {
-                await _settingsService.removePinnedModel(model.id);
-              } else {
-                await _settingsService.addPinnedModel(model.id);
-              }
-              setState(() {});
-            },
-          ),
-          if (_selectedModel?.id == model.id) const Icon(Icons.check),
-        ],
-      ),
-      onTap: () {
-        setState(() => _selectedModel = model);
-        Navigator.pop(context);
-        _createNewChat();
-      },
-    );
+        );
   }
 
   @override
