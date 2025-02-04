@@ -79,6 +79,13 @@ class DatabaseHelper {
     print('DBHELPER: Database file deleted');
   }
 
+  Future<void> clearChats() async {
+    final db = await instance.database;
+    await db.delete('chats');
+    await db.delete('messages');
+    print('DBHELPER: Chats cleared');
+  }
+
   Future<int> insertChat(Chat chat) async {
     final db = await instance.database;
     return db.insert('chats', {

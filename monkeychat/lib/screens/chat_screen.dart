@@ -11,6 +11,7 @@ import 'settings_screen.dart';
 import '../models/llm_model.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../widgets/model_selection_dialog.dart';
+import 'package:flutter/cupertino.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -99,6 +100,20 @@ class _ChatScreenState extends State<ChatScreen> {
     setState(() => _isNewChat = false);
   }
 
+  Future<void> _deleteAllChats() async {
+    try {
+      await DatabaseHelper.instance.clearChats();
+      setState(() {}); // Refresh the UI
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('All chats deleted successfully')),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to delete chats: $e')),
+      );
+    }
+  }
+
   void _handleSubmitted(String text) async {
     _textController.clear();
 
@@ -140,7 +155,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('AI Chat Assistant'),
+        title: const Text('Monkeychat'),
         actions: [
           IconButton(
             icon: const Icon(Icons.settings),
@@ -168,7 +183,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'AI Chat',
+                        'Monkeychat',
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 24,
@@ -213,6 +228,18 @@ class _ChatScreenState extends State<ChatScreen> {
                         },
                       );
                     },
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.delete, size: 18),
+                    label: const Text('Delete All Chats'),
+                    onPressed: _deleteAllChats,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                      foregroundColor: Colors.white,
+                    ),
                   ),
                 ),
               ],
