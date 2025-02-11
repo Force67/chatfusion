@@ -44,19 +44,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: const Text('App Settings', style: TextStyle(fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        backgroundColor: Theme.of(context).primaryColor,
+        elevation: 0,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(20.0),
         child: Form(
           key: _formKey,
           child: ListView(
             children: [
+              Text(
+                'Update Settings',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Theme.of(context).primaryColorDark,
+                ),
+              ),
+              const SizedBox(height: 20),
               TextFormField(
                 controller: _apiKeyController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'OpenRouter API Key',
-                  border: OutlineInputBorder(),
+                  labelStyle: TextStyle(color: Theme.of(context).hintColor),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Theme.of(context).primaryColor),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 2),
+                  ),
                 ),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -66,30 +86,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 },
                 obscureText: true,
               ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _siteUrlController,
-                decoration: const InputDecoration(
-                  labelText: 'Site URL (optional)',
-                  border: OutlineInputBorder(),
-                ),
-              ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _siteNameController,
-                decoration: const InputDecoration(
-                  labelText: 'Site Name (optional)',
-                  border: OutlineInputBorder(),
-                ),
-              ),
               const SizedBox(height: 24),
               ElevatedButton(
                 onPressed: _saveSettings,
-                child: const Text('Save Settings'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColor,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Save Settings',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
               const SizedBox(height: 16),
               ElevatedButton(
-                child: const Text('Erase Settings'),
                 onPressed: () async {
                   await _settingsService.saveSettings(
                     apiKey: '',
@@ -98,14 +111,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   );
                   await _loadSettings();
                 },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Erase Settings',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
               const SizedBox(height: 16),
               ElevatedButton(
-                child: const Text('Erase Database'),
                 onPressed: () async {
                   await DatabaseHelper.instance.clearAll();
                   await DatabaseHelper.instance.getChats();
                 },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.orangeAccent,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text(
+                  'Erase Chat Database',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),
