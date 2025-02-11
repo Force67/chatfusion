@@ -55,7 +55,7 @@
             ninja
             pkg-config
             lcov
-            jdk11
+            jdk17
             clangEnv
             binutils
             patchelf  # Add patchelf for fixing binary paths
