@@ -24,6 +24,9 @@ dependencies:
   cached_network_image:
   flutter_riverpod:
   flutter_markdown:
+  flutter_math_fork:
+  flutter_tex:
+  latext:
 
 dev_dependencies:
   flutter_test:
