@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:monkeychat/services/ai_provider.dart';
 import '../database/database_helper.dart';
 import '../models/chat.dart';
 import '../models/message.dart';
 import '../widgets/chat_message.dart';
 import '../services/settings_service.dart';
-import '../services/model_service.dart';
+import '../services/ai_provider_or.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'settings_screen.dart';
@@ -22,63 +23,63 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _textController = TextEditingController();
-  final SettingsService _settingsService = SettingsService();
+  final AIProvider _provider = AIProviderOpenrouter();
   late int _currentChatId;
   bool _isNewChat = true;
   LLMModel? _selectedModel;
+  String _streamedResponse = '';
 
   Future<List<Chat>> _loadChats() async {
     return await DatabaseHelper.instance.getChats();
   }
 
-  Future<void> _sendToOpenRouter(String userMessage) async {
-    final apiKey = await _settingsService.getApiKey();
-    if (apiKey == null || apiKey.isEmpty) {
+  Future<void> _sendToProvider(String userMessage) async {
+    if (_selectedModel == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('API key not configured in settings')),
+        const SnackBar(content: Text('Please select a model first')),
       );
       return;
     }
 
-    final siteUrl = await _settingsService.getSiteUrl() ?? '';
-    final siteName = await _settingsService.getSiteName() ?? '';
+    final userMessageObj = Message(
+      id: 0,
+      chatId: _currentChatId,
+      text: userMessage,
+      isUser: true,
+      createdAt: DateTime.now(),
+    );
+
+    await DatabaseHelper.instance.insertMessage(userMessageObj);
+
+    setState(() {
+      _streamedResponse = ''; // Reset the streamed response
+    });
 
     try {
-      final response = await http.post(
-        Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
-        headers: {
-          'Authorization': 'Bearer $apiKey',
-          'HTTP-Referer': siteUrl,
-          'X-Title': siteName,
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({
-        //  'model': 'openai/gpt-3.5-turbo',
-          'model': _selectedModel!.id,
-          'messages': [
-            {'role': 'user', 'content': userMessage}
-          ],
-        }),
+      // Use the AIProvider's streamResponse method
+      final stream = _provider.streamResponse(_selectedModel!.id, userMessage);
+
+      await for (final chunk in stream) {
+        setState(() {
+          _streamedResponse += chunk; // Append the chunk to the response
+        });
+      }
+
+      // Save the final AI response to the database
+      final aiMessage = Message(
+        id: 0,
+        chatId: _currentChatId,
+        text: _streamedResponse,
+        isUser: false,
+        createdAt: DateTime.now(),
       );
 
-      if (response.statusCode == 200) {
-        final responseBody = jsonDecode(response.body);
-        final aiResponse = responseBody['choices'][0]['message']['content'];
+      await DatabaseHelper.instance.insertMessage(aiMessage);
 
-        final aiMessage = Message(
-          id: 0,
-          chatId: _currentChatId,
-          text: aiResponse,
-          isUser: false,
-          createdAt: DateTime.now(),
-        );
-        await DatabaseHelper.instance.insertMessage(aiMessage);
-        setState(() {});
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('API Error: ${response.body}')),
-        );
-      }
+      // Clear the streamed response after saving to the database
+      setState(() {
+        _streamedResponse = '';
+      });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
@@ -122,33 +123,22 @@ class _ChatScreenState extends State<ChatScreen> {
       _isNewChat = false;
     }
 
-    final userMessage = Message(
-      id: 0,
-      chatId: _currentChatId,
-      text: text,
-      isUser: true,
-      createdAt: DateTime.now(),
-    );
-
-    await DatabaseHelper.instance.insertMessage(userMessage);
-    await _sendToOpenRouter(text);
+    await _sendToProvider(text);
     setState(() {});
   }
 
   Future<void> _showModelSelection() async {
-    final models = await ModelService().getModels();
-
     showDialog(
-          context: context,
-          builder: (context) => ModelSelectionDialog(
-            settingsService: _settingsService,
-            modelService: ModelService(),
-            onModelSelected: (model) {
-              setState(() => _selectedModel = model);
-              _createNewChat();
-            },
-          ),
-        );
+      context: context,
+      builder: (context) => ModelSelectionDialog(
+        settingsService: SettingsService(),
+        modelService: AIProviderOpenrouter(),
+        onModelSelected: (model) {
+          setState(() => _selectedModel = model);
+          _createNewChat();
+        },
+      ),
+    );
   }
 
   @override
@@ -170,7 +160,8 @@ class _ChatScreenState extends State<ChatScreen> {
         child: FutureBuilder<List<Chat>>(
           future: _loadChats(),
           builder: (context, snapshot) {
-            if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+            if (!snapshot.hasData)
+              return const Center(child: CircularProgressIndicator());
 
             final chats = snapshot.data!;
             return Column(
@@ -214,8 +205,8 @@ class _ChatScreenState extends State<ChatScreen> {
                           future: _getModelForChat(chats[index].modelId),
                           builder: (context, snapshot) => Text(
                             snapshot.hasData
-                              ? 'Model: ${snapshot.data!.name}'
-                              : 'Unknown model',
+                                ? 'Model: ${snapshot.data!.name}'
+                                : 'Unknown model',
                             style: Theme.of(context).textTheme.bodySmall,
                           ),
                         ),
@@ -248,7 +239,9 @@ class _ChatScreenState extends State<ChatScreen> {
         ),
       ),
       body: FutureBuilder<List<Message>>(
-        future: _isNewChat ? Future.value([]) : DatabaseHelper.instance.getMessages(_currentChatId),
+        future: _isNewChat
+            ? Future.value([])
+            : DatabaseHelper.instance.getMessages(_currentChatId),
         builder: (context, snapshot) {
           final messages = snapshot.data ?? [];
 
@@ -258,12 +251,22 @@ class _ChatScreenState extends State<ChatScreen> {
                 child: ListView.builder(
                   reverse: true,
                   padding: const EdgeInsets.all(12.0),
-                  itemCount: messages.length,
+                  itemCount:
+                      messages.length + (_streamedResponse.isNotEmpty ? 1 : 0),
                   itemBuilder: (context, index) {
-                    final message = messages.reversed.toList()[index];
+                    if (_streamedResponse.isNotEmpty && index == 0) {
+                      return ChatMessage(
+                        text: _streamedResponse,
+                        isUser: false,
+                        isStreaming: true,
+                      );
+                    }
+                    final message = messages.reversed.toList()[
+                        _streamedResponse.isNotEmpty ? index - 1 : index];
                     return ChatMessage(
                       text: message.text,
                       isUser: message.isUser,
+                      isStreaming: false,
                     );
                   },
                 ),
@@ -277,10 +280,9 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<LLMModel?> _getModelForChat(String modelId) async {
-    final models = await ModelService().getModels();
+    final models = await _provider.getModels();
     return models.firstWhere((m) => m.id == modelId);
   }
-
 
   Widget _buildInput() {
     return Container(
