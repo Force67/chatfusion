@@ -23,6 +23,7 @@ dependencies:
   shared_preferences:
   cached_network_image:
   flutter_riverpod:
+  flutter_markdown:
 
 dev_dependencies:
   flutter_test:

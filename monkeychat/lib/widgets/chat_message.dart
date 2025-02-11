@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 class ChatMessage extends StatelessWidget {
   final String text;
@@ -28,9 +29,15 @@ class ChatMessage extends StatelessWidget {
                 text,
                 style: const TextStyle(color: Colors.white),
               )
-            : Text(
-                text,
-                style: const TextStyle(color: Colors.white),
+            : MarkdownBody(
+                selectable: true,
+                data: text,
+                styleSheet: MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
+                  p: const TextStyle(color: Colors.white),
+                  a: const TextStyle(color: Colors.blue),
+                  em: const TextStyle(fontStyle: FontStyle.italic),
+                  strong: const TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
       ),
     );
