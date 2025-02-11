@@ -28,6 +28,7 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isNewChat = true;
   LLMModel? _selectedModel;
   String _streamedResponse = '';
+  bool _contextCleared = false;
 
   Future<List<Chat>> _loadChats() async {
     return await DatabaseHelper.instance.getChats();
@@ -56,8 +57,13 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     try {
-      // Use the AIProvider's streamResponse method
-      final stream = _provider.streamResponse(_selectedModel!.id, userMessage);
+      final messages = await DatabaseHelper.instance.getMessages(_currentChatId);
+      final contextMessages = _contextCleared
+          ? [userMessage]
+          : messages.map((m) => m.text).toList()..add(userMessage);
+
+      final stream = _provider.streamResponse(
+          _selectedModel!.id, contextMessages.join('\n'));
 
       await for (final chunk in stream) {
         setState(() {
@@ -65,7 +71,6 @@ class _ChatScreenState extends State<ChatScreen> {
         });
       }
 
-      // Save the final AI response to the database
       final aiMessage = Message(
         id: 0,
         chatId: _currentChatId,
@@ -76,7 +81,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
       await DatabaseHelper.instance.insertMessage(aiMessage);
 
-      // Clear the streamed response after saving to the database
       setState(() {
         _streamedResponse = '';
       });
@@ -116,15 +120,9 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _handleSubmitted(String text) async {
+    if (text.trim().isEmpty) return;
     _textController.clear();
-
-    if (_isNewChat) {
-      await _createNewChat();
-      _isNewChat = false;
-    }
-
     await _sendToProvider(text);
-    setState(() {});
   }
 
   Future<void> _showModelSelection() async {
@@ -139,6 +137,17 @@ class _ChatScreenState extends State<ChatScreen> {
         },
       ),
     );
+  }
+
+  void _clearContext() {
+    setState(() {
+      _contextCleared = true;
+    });
+  }
+
+    Future<LLMModel?> _getModelForChat(String modelId) async {
+    final models = await _provider.getModels();
+    return models.firstWhere((m) => m.id == modelId);
   }
 
   @override
@@ -211,11 +220,11 @@ class _ChatScreenState extends State<ChatScreen> {
                           ),
                         ),
                         onTap: () {
-                          setState(() {
+                                                    setState(() {
                             _currentChatId = chats[index].id;
                             _isNewChat = false;
                           });
-                          Navigator.pop(context);
+                          Navigator.pop(context); // Close the drawer
                         },
                       );
                     },
@@ -263,10 +272,25 @@ class _ChatScreenState extends State<ChatScreen> {
                     }
                     final message = messages.reversed.toList()[
                         _streamedResponse.isNotEmpty ? index - 1 : index];
-                    return ChatMessage(
-                      text: message.text,
-                      isUser: message.isUser,
-                      isStreaming: false,
+                    return Column(
+                      children: [
+                        if (_contextCleared && index == messages.length - 1)
+                          const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 8.0),
+                            child: Text(
+                              'Context Cleared',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ChatMessage(
+                          text: message.text,
+                          isUser: message.isUser,
+                          isStreaming: false,
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -279,17 +303,17 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Future<LLMModel?> _getModelForChat(String modelId) async {
-    final models = await _provider.getModels();
-    return models.firstWhere((m) => m.id == modelId);
-  }
-
   Widget _buildInput() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       color: Colors.grey[850],
       child: Row(
         children: [
+          // Clear Context Button
+          IconButton(
+            icon: const Icon(Icons.clear_all, color: Colors.blueGrey),
+            onPressed: _clearContext,
+          ),
           Expanded(
             child: TextField(
               controller: _textController,
@@ -313,4 +337,6 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
   }
+
 }
+
