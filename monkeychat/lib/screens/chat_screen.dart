@@ -9,7 +9,7 @@ import '../services/ai_provider_or.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'settings_screen.dart';
-import '../models/llm_model.dart';
+import '../models/llm.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../widgets/model_selection_dialog.dart';
 import 'package:flutter/cupertino.dart';
@@ -26,7 +26,7 @@ class _ChatScreenState extends State<ChatScreen> {
   final AIProvider _provider = AIProviderOpenrouter();
   late int _currentChatId;
   bool _isNewChat = true;
-  LLMModel? _selectedModel;
+  LLModel? _selectedModel;
   String _streamedResponse = '';
   bool _contextCleared = false;
 
@@ -57,10 +57,11 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     try {
-      final messages = await DatabaseHelper.instance.getMessages(_currentChatId);
-      final contextMessages = _contextCleared
-          ? [userMessage]
-          : messages.map((m) => m.text).toList()..add(userMessage);
+      final messages =
+          await DatabaseHelper.instance.getMessages(_currentChatId);
+      final contextMessages =
+          _contextCleared ? [userMessage] : messages.map((m) => m.text).toList()
+            ..add(userMessage);
 
       final stream = _provider.streamResponse(
           _selectedModel!.id, contextMessages.join('\n'));
@@ -145,7 +146,7 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-    Future<LLMModel?> _getModelForChat(String modelId) async {
+  Future<LLModel?> _getModelForChat(String modelId) async {
     final models = await _provider.getModels();
     return models.firstWhere((m) => m.id == modelId);
   }
@@ -210,7 +211,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       return ListTile(
                         leading: const Icon(Icons.chat_bubble_outline),
                         title: Text(chats[index].title),
-                        subtitle: FutureBuilder<LLMModel?>(
+                        subtitle: FutureBuilder<LLModel?>(
                           future: _getModelForChat(chats[index].modelId),
                           builder: (context, snapshot) => Text(
                             snapshot.hasData
@@ -220,7 +221,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           ),
                         ),
                         onTap: () {
-                                                    setState(() {
+                          setState(() {
                             _currentChatId = chats[index].id;
                             _isNewChat = false;
                           });
@@ -337,6 +338,4 @@ class _ChatScreenState extends State<ChatScreen> {
       ),
     );
   }
-
 }
-

@@ -2,7 +2,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/chat.dart';
 import '../models/message.dart';
-import '../models/llm_model.dart';
+import '../models/llm.dart';
 import 'dart:convert';
 
 class DatabaseHelper {
@@ -95,13 +95,14 @@ class DatabaseHelper {
     });
   }
 
-  Future<List<LLMModel>> getCachedModels() async {
+  Future<List<LLModel>> getCachedModels() async {
     final db = await instance.database;
     final maps = await db.query('cached_models');
-    return maps.map((map) => LLMModel.fromJson(jsonDecode(map['data'] as String))).toList();
+    
+    return maps.map((map) => LLModel.fromJson(jsonDecode(map['data'] as String))).toList();
   }
 
-  Future<void> cacheModels(List<LLMModel> models) async {
+  Future<void> cacheModels(List<LLModel> models) async {
     final db = await instance.database;
     await db.delete('cached_models');
     for (final model in models) {

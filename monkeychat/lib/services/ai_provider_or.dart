@@ -1,40 +1,153 @@
 import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
+
 import 'package:monkeychat/services/ai_provider.dart';
 import 'package:monkeychat/services/settings_service.dart';
 import 'dart:convert';
 import '../database/database_helper.dart';
-import '../models/llm_model.dart';
+import '../models/llm.dart';
 
 class AIProviderOpenrouter extends AIProvider {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
   final _apiUrl = 'https://openrouter.ai/api/v1';
+  final _frontendUrl = 'https://openrouter.ai/api/frontend';
   final SettingsService _settingsService = SettingsService();
 
-  Future<List<LLMModel>> _getCachedModels() async {
+  Future<List<LLModel>> _getCachedModels() async {
     return await _dbHelper.getCachedModels();
   }
 
-  @override
-  Future<List<LLMModel>> getModels({bool forceRefresh = false}) async {
+  // see: https://openrouter.ai/api/frontend/models
+  LLModel? _ingestLLMInfo(Map<String, dynamic> json) {
+    try {
+      final permaslug = json['slug'];
+      final shortName = json['short_name'];
+      final descriptionJson = json['description'];
+      final endpoint = json['endpoint'];
+
+      // Validate required fields
+      if (permaslug == null) {
+        throw ArgumentError('permaslug is missing');
+      }
+      if (shortName == null) {
+        throw ArgumentError('short_name is missing');
+      }
+      if (descriptionJson == null) {
+        throw ArgumentError('description is missing');
+      }
+
+      // If the endpoint is null, the model is no longer available by any providers, so we exclude it.
+      if (endpoint == null) {
+        return null;
+      }
+
+      const int maxDescriptionLength = 50;
+
+      // Handle description (ensure it's a string)
+      String description;
+      if (descriptionJson is String) {
+        description = descriptionJson.length > maxDescriptionLength
+            ? descriptionJson.substring(0, maxDescriptionLength)
+            : descriptionJson;
+
+      } else {
+        description = "No Description provided";
+        if (kDebugMode) {
+          print(
+              'Error: Invalid description format. Expected String, got: ${descriptionJson.runtimeType}');
+        }
+      }
+
+      // Don't ask me why...
+      String iconUrl = "";
+      if (endpoint != null) {
+        iconUrl = endpoint['provider_info']['icon']['url'];
+
+        // if the url doesnt start with a https, the image is stored on OR, so add the OR base URL
+        if (!iconUrl.startsWith('https')) {
+          iconUrl = 'https://openrouter.ai$iconUrl';
+        }
+      }
+
+      return LLModel(
+        id: permaslug,
+        name: shortName,
+        description: description,
+        provider: "NOPE",
+        iconUrl: iconUrl,
+        capabilities: Map<String, dynamic>(),
+      );
+    } catch (e, stackTrace) {
+      if (kDebugMode) {
+        print('Stack trace: $stackTrace');
+      }
+      return null;
+    }
+  }
+
+   @override
+  Future<List<LLModel>> getModels({bool forceRefresh = false}) async {
     final cachedModels = await _getCachedModels();
     if (cachedModels.isNotEmpty && !forceRefresh) {
       return cachedModels;
     }
 
     final response = await http.get(
-      Uri.parse('$_apiUrl/models'),
+      Uri.parse('$_frontendUrl/models'),
     );
-    print('Response: ${response.body}');
+    //print('Response: ${response.body}');
 
+    // This is a multiple MB json, we try to cache it at all costs.
     if (response.statusCode == 200) {
-      final models = (jsonDecode(response.body)['data'] as List)
-          .map((e) => LLMModel.fromJson(e))
-          .toList();
-      await _dbHelper.cacheModels(models);
-      return models;
+      try {
+        final decodedBody = utf8.decode(response.bodyBytes);
+        final models = (jsonDecode(decodedBody)['data'] as List)
+            .map((e) => _ingestLLMInfo(e))
+            .toList();
+
+        // Deduplicate the models based on their ID (permaslug)
+        final uniqueModels = <LLModel>[];
+        final seenIds = <String>{};
+
+        for (final model in models) {
+          if (model == null) {
+            continue;
+          }
+          if (!seenIds.contains(model.id)) {
+            uniqueModels.add(model);
+            seenIds.add(model.id);
+          }
+        }
+        await _dbHelper.cacheModels(uniqueModels);
+        return uniqueModels;
+      } catch (e) {
+        print('Error parsing models: $e');
+        return cachedModels;
+      }
     }
 
-    return cachedModels; // Return cached if available
+    return cachedModels;
+  }
+
+  // Helper method to convert a string to PascalCase
+  String _toPascalCase(String input) {
+    // Split into parts (e.g., "deep_seek" -> ["deep", "seek"])
+    List<String> parts = input.split(RegExp(r'[_\s]'));
+
+    // Capitalize the first letter of each part and concatenate
+    String pascalCase = parts.map((part) {
+      if (part.isEmpty) return part;
+      return part[0].toUpperCase() + part.substring(1).toLowerCase();
+    }).join();
+
+    return pascalCase;
+  }
+
+  @override
+  Future<String> fetchImageURL(String modelId) async {
+    final nameSubset = modelId.contains('/') ? modelId.split('/')[0] : modelId;
+    final pascalCaseName = _toPascalCase(nameSubset);
+    return "https://openrouter.ai/images/icons/$pascalCaseName.png";
   }
 
   @override

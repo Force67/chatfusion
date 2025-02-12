@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_svg/flutter_svg.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart'; // Add this
+import 'package:http/http.dart' as http;  // Add this
 import 'package:monkeychat/services/ai_provider.dart';
 import '../services/settings_service.dart';
 import '../services/ai_provider_or.dart';
-import '../models/llm_model.dart';
+import '../models/llm.dart';
 
 class ModelSelectionDialog extends StatefulWidget {
   final SettingsService settingsService;
   final AIProvider modelService;
-  final Function(LLMModel) onModelSelected;
+  final Function(LLModel) onModelSelected;
 
   const ModelSelectionDialog({
     super.key,
@@ -22,8 +25,10 @@ class ModelSelectionDialog extends StatefulWidget {
 }
 
 class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
-  late Future<List<LLMModel>> _modelsFuture;
+  late Future<List<LLModel>> _modelsFuture;
   String _searchQuery = '';
+  final _cacheManager = CacheManager(Config('svg_cache', maxNrOfCacheObjects: 20, stalePeriod: const Duration(days: 7)));
+
 
   @override
   void initState() {
@@ -67,7 +72,7 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
               ),
             ),
             Expanded(
-              child: FutureBuilder<List<LLMModel>>(
+              child: FutureBuilder<List<LLModel>>(
                 future: _modelsFuture,
                 builder: (context, modelsSnapshot) {
                   if (!modelsSnapshot.hasData) {
@@ -95,7 +100,7 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
     );
   }
 
-  Widget _buildModelList(List<LLMModel> models, Set<String> pinnedModelIds) {
+  Widget _buildModelList(List<LLModel> models, Set<String> pinnedModelIds) {
     final filteredPinned = models
         .where((model) =>
             pinnedModelIds.contains(model.id) &&
@@ -148,15 +153,10 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
     );
   }
 
-  Widget _buildModelTile(LLMModel model, Set<String> pinnedModelIds) {
+  Widget _buildModelTile(LLModel model, Set<String> pinnedModelIds) {
     return ListTile(
-      leading: CachedNetworkImage(
-        imageUrl: model.iconUrl,
-        width: 32,
-        height: 32,
-        placeholder: (context, url) => const CircularProgressIndicator(),
-        errorWidget: (context, url, error) => const Icon(Icons.settings),
-      ),
+
+      leading: _buildImageWidget(model.iconUrl),
       title: Text(model.name),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -191,5 +191,78 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
         Navigator.pop(context);
       },
     );
+  }
+
+
+  Widget _buildImageWidget(String imageUrl) {
+    if (imageUrl.toLowerCase().endsWith('.svg')) {
+      return FutureBuilder<String?>(
+        future: _loadCachedSvg(imageUrl),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const CircularProgressIndicator();
+          } else if (snapshot.hasError) {
+            print('Error loading SVG: ${snapshot.error}');  // Log the error
+            return const Icon(Icons.error); //Consider a different error icon
+          } else if (snapshot.hasData && snapshot.data != null) {
+            return SvgPicture.string(
+              snapshot.data!,
+              width: 32,
+              height: 32,
+              placeholderBuilder: (BuildContext context) => const CircularProgressIndicator(),
+              // Disable network access for security
+              //assetBundle: null,
+              // Decoder specific properties
+              //colorFilter: ColorFilter.mode(Colors.red, BlendMode.srcIn),
+            );
+          } else {
+            return const Icon(Icons.error); // Handle case where data is null
+          }
+        },
+      );
+    } else {
+      // If the image is not an SVG, use CachedNetworkImage as before
+      return CachedNetworkImage(
+        imageUrl: imageUrl,
+        width: 32,
+        height: 32,
+        placeholder: (context, url) => const CircularProgressIndicator(),
+        errorWidget: (context, url, error) => const Icon(Icons.settings),
+      );
+    }
+  }
+
+
+  Future<String?> _loadCachedSvg(String url) async {
+    try {
+      final file = await _cacheManager.getFileFromCache(url);
+      if (file != null) {
+        //print('SVG loaded from cache: $url');
+        return await file.file.readAsString();
+      }
+
+      //print('Downloading SVG: $url');
+      final response = await http.get(Uri.parse(url));  //Consider adding headers or timeout
+      if (response.statusCode == 200) {
+        await _cacheManager.putFile(url, response.bodyBytes, maxAge: const Duration(days: 7), fileExtension: 'svg');  //Cache for a week.
+        //print('SVG downloaded and cached: $url');
+        return response.body;
+      } else {
+        print('Failed to download SVG: $url, status code: ${response.statusCode}');
+        return null; //Or throw an exception
+      }
+    } catch (e) {
+      print('Error loading or caching SVG: $url, error: $e');
+      return null; //Or throw the exception to be handled by the caller
+    }
+  }
+
+
+
+
+  @override
+  void dispose() {
+    _cacheManager.dispose();
+    super.dispose();
   }
 }
