@@ -1,7 +1,6 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:sqflite/sqflite.dart';
 import 'theme.dart';
 import 'screens/chat_screen.dart';
 

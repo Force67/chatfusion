@@ -6,13 +6,9 @@ import '../models/message.dart';
 import '../widgets/chat_message.dart';
 import '../services/settings_service.dart';
 import '../services/ai_provider_or.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'settings_screen.dart';
 import '../models/llm.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../widgets/model_selection_dialog.dart';
-import 'package:flutter/cupertino.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -170,8 +166,9 @@ class _ChatScreenState extends State<ChatScreen> {
         child: FutureBuilder<List<Chat>>(
           future: _loadChats(),
           builder: (context, snapshot) {
-            if (!snapshot.hasData)
+            if (!snapshot.hasData) {
               return const Center(child: CircularProgressIndicator());
+            }
 
             final chats = snapshot.data!;
             return Column(

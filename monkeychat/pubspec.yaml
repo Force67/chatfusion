@@ -28,6 +28,9 @@ dependencies:
   flutter_tex:
   latext:
 
+  path: any
+  flutter_svg: any
+  flutter_cache_manager: any
 dev_dependencies:
   flutter_test:
     sdk: flutter

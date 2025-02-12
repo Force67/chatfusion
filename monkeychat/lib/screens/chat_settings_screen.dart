@@ -7,7 +7,7 @@ import '../database/database_helper.dart';
 class ChatSettingsScreen extends StatefulWidget {
   final Chat chat;
 
-  const ChatSettingsScreen({Key? key, required this.chat}) : super(key: key);
+  const ChatSettingsScreen({super.key, required this.chat});
 
   @override
   _ChatSettingsScreenState createState() => _ChatSettingsScreenState();

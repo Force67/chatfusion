@@ -75,7 +75,7 @@ class AIProviderOpenrouter extends AIProvider {
         description: description,
         provider: "NOPE",
         iconUrl: iconUrl,
-        capabilities: Map<String, dynamic>(),
+        capabilities: <String, dynamic>{},
       );
     } catch (e, stackTrace) {
       if (kDebugMode) {

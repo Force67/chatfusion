@@ -5,7 +5,6 @@ import 'package:flutter_cache_manager/flutter_cache_manager.dart'; // Add this
 import 'package:http/http.dart' as http;  // Add this
 import 'package:monkeychat/services/ai_provider.dart';
 import '../services/settings_service.dart';
-import '../services/ai_provider_or.dart';
 import '../models/llm.dart';
 
 class ModelSelectionDialog extends StatefulWidget {
