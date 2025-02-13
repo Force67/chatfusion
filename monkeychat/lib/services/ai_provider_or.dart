@@ -1,9 +1,11 @@
 import 'package:http/http.dart' as http;
 import 'package:flutter/foundation.dart';
+import 'dart:convert';
+import 'dart:io';
+import 'package:mime/mime.dart';
 
 import 'package:monkeychat/services/ai_provider.dart';
 import 'package:monkeychat/services/settings_service.dart';
-import 'dart:convert';
 import '../database/database_helper.dart';
 import '../models/llm.dart';
 
@@ -222,8 +224,12 @@ class AIProviderOpenrouter extends AIProvider {
   }
 
   @override
-  Stream<String> streamResponse(String modelId, String question) async* {
-    final url = Uri.parse('$_apiUrl/chat/completions'); // Fix the URL
+  Stream<String> streamResponse(
+    String modelId,
+    String question,
+    {String? imagePath}
+  ) async* {
+    final url = Uri.parse('$_apiUrl/chat/completions');
     final apiKey = await _settingsService.getApiKey();
     if (apiKey == null) {
       print('API key not set');
@@ -235,14 +241,49 @@ class AIProviderOpenrouter extends AIProvider {
       'Content-Type': 'application/json',
     };
 
+    // Prepare message content
+    dynamic messageContent;
+    if (imagePath != null) {
+      final file = File(imagePath);
+      final bytes = await file.readAsBytes();
+      final mimeType = lookupMimeType(imagePath) ?? 'image/jpeg';
+
+      if (!mimeType.startsWith('image/')) {
+        throw Exception('Unsupported file type: $mimeType');
+      }
+
+      final base64Image = base64Encode(bytes);
+      final dataUri = 'data:$mimeType;base64,$base64Image';
+
+      messageContent = [
+        {
+          'type': 'text',
+          'text': question
+        },
+        {
+          'type': 'image_url',
+          'image_url': {
+            'url': dataUri,
+            'detail': 'auto' // You can modify this based on needs
+          }
+        }
+      ];
+    } else {
+      messageContent = question;
+    }
+
     final payload = {
       'model': modelId,
       'messages': [
-        {'role': 'user', 'content': question}
+        {
+          'role': 'user',
+          'content': messageContent
+        }
       ],
       'stream': true,
     };
 
+    // Rest of the original stream handling remains the same
     final request = http.Request('POST', url)
       ..headers.addAll(headers)
       ..body = jsonEncode(payload);
@@ -252,8 +293,7 @@ class AIProviderOpenrouter extends AIProvider {
     if (streamedResponse.statusCode == 200) {
       String buffer = '';
 
-      await for (final chunk
-          in streamedResponse.stream.transform(utf8.decoder)) {
+      await for (final chunk in streamedResponse.stream.transform(utf8.decoder)) {
         buffer += chunk;
 
         while (true) {
@@ -265,16 +305,12 @@ class AIProviderOpenrouter extends AIProvider {
 
           if (line.startsWith('data: ')) {
             final data = line.substring(6);
-            if (data == '[DONE]') {
-              return;
-            }
+            if (data == '[DONE]') return;
 
             try {
               final dataObj = jsonDecode(data);
               final content = dataObj['choices'][0]['delta']['content'];
-              if (content != null) {
-                yield content; // Yield the content as a stream event
-              }
+              if (content != null) yield content;
             } catch (e) {
               // Ignore JSON decode errors
             }
@@ -283,8 +319,7 @@ class AIProviderOpenrouter extends AIProvider {
       }
     } else {
       print('Request failed with status code: ${streamedResponse.statusCode}');
-      throw Exception(
-          'Request failed with status code: ${streamedResponse.statusCode}');
+      throw Exception('Request failed with status code: ${streamedResponse.statusCode}');
     }
   }
 }

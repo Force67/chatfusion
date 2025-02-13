@@ -10,6 +10,7 @@ import 'settings_screen.dart';
 import '../models/llm.dart';
 import '../widgets/model_selection_dialog.dart';
 import '../widgets/chat_list_sidebar.dart';
+import 'package:file_picker/file_picker.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -26,12 +27,13 @@ class _ChatScreenState extends State<ChatScreen> {
   LLModel? _selectedModel;
   String _streamedResponse = '';
   bool _contextCleared = false;
+  String? _selectedImagePath;
 
   Future<List<Chat>> _loadChats() async {
     return await DatabaseHelper.instance.getChats();
   }
 
-  Future<void> _sendToProvider(String userMessage) async {
+  Future<void> _sendToProvider(String userMessage, {String? imagePath}) async {
     if (_selectedModel == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a model first')),
@@ -61,7 +63,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ..add(userMessage);
 
       final stream = _provider.streamResponse(
-          _selectedModel!.id, contextMessages.join('\n'));
+          _selectedModel!.id, contextMessages.join('\n'), imagePath: _selectedImagePath);
 
       await for (final chunk in stream) {
         setState(() {
@@ -118,9 +120,12 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _handleSubmitted(String text) async {
-    if (text.trim().isEmpty) return;
+    if (text.trim().isEmpty && _selectedImagePath == null) return;
     _textController.clear();
-    await _sendToProvider(text);
+    await _sendToProvider(text, imagePath: _selectedImagePath);
+    setState(() {
+      _selectedImagePath = null; // Reset after sending
+    });
   }
 
   Future<void> _showModelSelection() async {
@@ -238,12 +243,77 @@ class _ChatScreenState extends State<ChatScreen> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       color: Colors.grey[850],
-      child: Row(
+      child: Column(
+            children: [
+              if (_selectedImagePath != null)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8.0),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.image, color: Colors.blueGrey, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Attached: ${_selectedImagePath!.split('/').last}',
+                          style: const TextStyle(color: Colors.white70),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close, size: 18, color: Colors.blueGrey),
+                        onPressed: () => setState(() => _selectedImagePath = null),
+                      ),
+                    ],
+                  ),
+                ),
+                Row(
         children: [
-          // Clear Context Button
           IconButton(
             icon: const Icon(Icons.clear_all, color: Colors.blueGrey),
             onPressed: _clearContext,
+          ),
+          // Add the media selector button here
+          IconButton(
+            icon: const Icon(Icons.attach_file, color: Colors.blueGrey),
+            tooltip: 'Attach file',
+            onPressed: () async {
+              if (_selectedModel == null) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please select a model first')),
+                );
+                return;
+              }
+
+              final FileType fileType = _selectedModel!.supportsImageInput
+                  ? FileType.image
+                  : FileType.custom;
+
+              final List<String>? allowedExtensions = _selectedModel!.supportsImageInput
+                  ? null
+                  : ['txt', 'text'];
+
+              try {
+                final FilePickerResult? result = await FilePicker.platform.pickFiles(
+                  type: fileType,
+                  allowedExtensions: allowedExtensions,
+                );
+
+                if (result != null && result.files.isNotEmpty) {
+                  final PlatformFile file = result.files.first;
+                  if (_selectedModel!.supportsImageInput) {
+                    setState(() {
+                      _selectedImagePath = file.path;
+                    });
+                  } else {
+                    // Handle text file selection logic
+                  }
+                }
+              } catch (e) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Error selecting file: $e')),
+                );
+              }
+            },
           ),
           Expanded(
             child: TextField(
@@ -265,6 +335,8 @@ class _ChatScreenState extends State<ChatScreen> {
             onPressed: () => _handleSubmitted(_textController.text),
           ),
         ],
+      ),
+            ],
       ),
     );
   }

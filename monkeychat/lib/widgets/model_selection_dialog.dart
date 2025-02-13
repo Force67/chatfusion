@@ -154,7 +154,6 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
 
   Widget _buildModelTile(LLModel model, Set<String> pinnedModelIds) {
     return ListTile(
-
       leading: _buildImageWidget(model.iconUrl),
       title: Text(model.name),
       subtitle: Column(
@@ -162,6 +161,25 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
         children: [
           Text(model.provider),
           Text(model.description, maxLines: 2, overflow: TextOverflow.ellipsis),
+          if (model.supportsImageInput || model.supportsImageOutput)
+            Row(
+              children: [
+                if (model.supportsImageInput) ...[
+                  Tooltip(
+                    message: 'Supports Image Input',
+                    child: const Icon(Icons.camera_alt, size: 16),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+                if (model.supportsImageOutput) ...[
+                  Tooltip(
+                    message: 'Supports Image Output',
+                    child: const Icon(Icons.image, size: 16),
+                  ),
+                  const SizedBox(width: 4),
+                ],
+              ],
+            ),
         ],
       ),
       trailing: Row(
@@ -191,7 +209,6 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
       },
     );
   }
-
 
   Widget _buildImageWidget(String imageUrl) {
     if (imageUrl.toLowerCase().endsWith('.svg')) {

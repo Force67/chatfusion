@@ -31,6 +31,10 @@ dependencies:
   path: any
   flutter_svg: any
   flutter_cache_manager: any
+
+  file_picker:
+  mime:
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
