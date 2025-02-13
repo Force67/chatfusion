@@ -9,6 +9,7 @@ import '../services/ai_provider_or.dart';
 import 'settings_screen.dart';
 import '../models/llm.dart';
 import '../widgets/model_selection_dialog.dart';
+import '../widgets/chat_list_sidebar.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -20,7 +21,7 @@ class ChatScreen extends StatefulWidget {
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController _textController = TextEditingController();
   final AIProvider _provider = AIProviderOpenrouter();
-  late int _currentChatId;
+  int _currentChatId = 0;
   bool _isNewChat = true;
   LLModel? _selectedModel;
   String _streamedResponse = '';
@@ -149,102 +150,34 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Monkeychat'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.settings),
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => const SettingsScreen()),
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Monkeychat'),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.settings),
+              onPressed: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              ),
             ),
-          ),
-        ],
-      ),
-      drawer: Drawer(
-        child: FutureBuilder<List<Chat>>(
-          future: _loadChats(),
-          builder: (context, snapshot) {
-            if (!snapshot.hasData) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            final chats = snapshot.data!;
-            return Column(
-              children: [
-                DrawerHeader(
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text(
-                        'Monkeychat',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 10),
-                      ElevatedButton.icon(
-                        icon: const Icon(Icons.add, size: 18),
-                        label: const Text('New Chat'),
-                        onPressed: _showModelSelection,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.blueGrey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: chats.length,
-                    itemBuilder: (context, index) {
-                      return ListTile(
-                        leading: const Icon(Icons.chat_bubble_outline),
-                        title: Text(chats[index].title),
-                        subtitle: FutureBuilder<LLModel?>(
-                          future: _getModelForChat(chats[index].modelId),
-                          builder: (context, snapshot) => Text(
-                            snapshot.hasData
-                                ? 'Model: ${snapshot.data!.name}'
-                                : 'Unknown model',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                        ),
-                        onTap: () {
-                          setState(() {
-                            _currentChatId = chats[index].id;
-                            _isNewChat = false;
-                          });
-                          Navigator.pop(context); // Close the drawer
-                        },
-                      );
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: ElevatedButton.icon(
-                    icon: const Icon(Icons.delete, size: 18),
-                    label: const Text('Delete All Chats'),
-                    onPressed: _deleteAllChats,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ),
-              ],
-            );
-          },
+          ],
         ),
-      ),
+        drawer: Drawer(
+          child: ChatListSidebar(
+            currentChatId: _currentChatId,
+            onChatSelected: (chatId) {
+              setState(() {
+                _currentChatId = chatId;
+                _isNewChat = false;
+              });
+              Navigator.pop(context);
+            },
+            onNewChat: _showModelSelection,
+            onDeleteAllChats: _deleteAllChats,
+            getModelForChat: _getModelForChat,
+          ),
+        ),
       body: FutureBuilder<List<Message>>(
         future: _isNewChat
             ? Future.value([])

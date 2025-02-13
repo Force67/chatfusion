@@ -129,25 +129,12 @@ class AIProviderOpenrouter extends AIProvider {
     return cachedModels;
   }
 
-  // Helper method to convert a string to PascalCase
-  String _toPascalCase(String input) {
-    // Split into parts (e.g., "deep_seek" -> ["deep", "seek"])
-    List<String> parts = input.split(RegExp(r'[_\s]'));
-
-    // Capitalize the first letter of each part and concatenate
-    String pascalCase = parts.map((part) {
-      if (part.isEmpty) return part;
-      return part[0].toUpperCase() + part.substring(1).toLowerCase();
-    }).join();
-
-    return pascalCase;
-  }
 
   @override
   Future<String> fetchImageURL(String modelId) async {
-    final nameSubset = modelId.contains('/') ? modelId.split('/')[0] : modelId;
-    final pascalCaseName = _toPascalCase(nameSubset);
-    return "https://openrouter.ai/images/icons/$pascalCaseName.png";
+    final models = await getModels();
+    final model = models.where((element) => element.id == modelId).toList();
+    return model[0].iconUrl;
   }
 
   @override
