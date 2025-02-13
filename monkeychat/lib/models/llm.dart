@@ -1,4 +1,3 @@
-//enum LLMModelFlags 
 
 class LLModel {
   final String id;
@@ -6,9 +5,9 @@ class LLModel {
   final String description;
   final String provider;
   final String iconUrl;
-  //final int flags;
-
-  final Map<String, dynamic> capabilities;
+  final bool supportsImageInput;
+  final bool supportsImageOutput;
+  final List<String> tunableParameters;
 
   LLModel({
     required this.id,
@@ -16,7 +15,9 @@ class LLModel {
     required this.description,
     required this.provider,
     required this.iconUrl,
-    required this.capabilities,
+    required this.supportsImageInput,
+    required this.supportsImageOutput,
+    required this.tunableParameters,
   });
 
   @override
@@ -34,7 +35,11 @@ class LLModel {
         description: json['description'],
         provider: json['provider']['name'],
         iconUrl: json['provider']['icon_url'],
-        capabilities: json['capabilities'],
+        supportsImageInput: json['capabilities']['supports_image_input'],
+        supportsImageOutput: json['capabilities']['supports_image_output'],
+        tunableParameters: json['tunable_parameters'] != null
+            ? List<String>.from(json['tunable_parameters'])
+            : [],
       );
 
   // Convert the object to JSON, used by the database
@@ -43,6 +48,10 @@ class LLModel {
         'name': name,
         'description': description,
         'provider': {'name': provider, 'icon_url': iconUrl},
-        'capabilities': capabilities,
+        'capabilities': {
+          'supports_image_input': supportsImageInput,
+          'supports_image_output': supportsImageOutput,
+        },
+        'tunable_parameters': tunableParameters,
       };
 }

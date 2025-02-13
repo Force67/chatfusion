@@ -7,6 +7,14 @@ import 'dart:convert';
 import '../database/database_helper.dart';
 import '../models/llm.dart';
 
+// What a model on OR is capable of
+class ORModelCapabilities {
+  bool supportsTextInput = false;
+  bool supportsImageInput = false;
+  bool supportsTextOutput = false;
+  bool supportsImageOutput = false;
+}
+
 class AIProviderOpenrouter extends AIProvider {
   final DatabaseHelper _dbHelper = DatabaseHelper.instance;
   final _apiUrl = 'https://openrouter.ai/api/v1';
@@ -17,6 +25,69 @@ class AIProviderOpenrouter extends AIProvider {
     return await _dbHelper.getCachedModels();
   }
 
+  ORModelCapabilities _decodeCapabilities(String ioString) {
+    final parts = ioString.split('->').map((e) => e.trim()).toList();
+      if (parts.length != 2) {
+        throw ArgumentError('Invalid format: Use "input_types->output_types"');
+      }
+
+      final inputTypes = parts[0]
+          .split('+')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+      final outputTypes = parts[1]
+          .split('+')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+
+      if (inputTypes.isEmpty || outputTypes.isEmpty) {
+        throw ArgumentError('Must specify at least one input and output type');
+      }
+
+      const allowedTypes = {'text', 'image'};
+
+      void validateTypes(List<String> types, String category) {
+        for (final type in types) {
+          if (!allowedTypes.contains(type)) {
+            throw ArgumentError('Invalid $category type: $type');
+          }
+        }
+      }
+
+      validateTypes(inputTypes, 'input');
+      validateTypes(outputTypes, 'output');
+
+      final config = ORModelCapabilities();
+
+      // Process input types
+      for (final type in inputTypes) {
+        switch (type) {
+          case 'text':
+            config.supportsTextInput = true;
+            break;
+          case 'image':
+            config.supportsImageInput = true;
+            break;
+        }
+      }
+
+      // Process output types
+      for (final type in outputTypes) {
+        switch (type) {
+          case 'text':
+            config.supportsTextOutput = true;
+            break;
+          case 'image':
+            config.supportsImageOutput = true;
+            break;
+        }
+      }
+
+      return config;
+  }
+
   // see: https://openrouter.ai/api/frontend/models
   LLModel? _ingestLLMInfo(Map<String, dynamic> json) {
     try {
@@ -24,6 +95,7 @@ class AIProviderOpenrouter extends AIProvider {
       final shortName = json['short_name'];
       final descriptionJson = json['description'];
       final endpoint = json['endpoint'];
+      final capabilities = json['modality'];
 
       // Validate required fields
       if (permaslug == null) {
@@ -34,6 +106,9 @@ class AIProviderOpenrouter extends AIProvider {
       }
       if (descriptionJson == null) {
         throw ArgumentError('description is missing');
+      }
+      if (capabilities == null) {
+        throw ArgumentError('modality is missing');
       }
 
       // If the endpoint is null, the model is no longer available by any providers, so we exclude it.
@@ -58,6 +133,13 @@ class AIProviderOpenrouter extends AIProvider {
         }
       }
 
+      ORModelCapabilities modelCapabilities = _decodeCapabilities(capabilities);
+
+      // Iterate the supported parameters
+      List<String> supportedParams = json['supported_params'] != null
+          ? List<String>.from(json['supported_params'])
+          : <String>[];
+
       // Don't ask me why...
       String iconUrl = "";
       if (endpoint != null) {
@@ -75,7 +157,9 @@ class AIProviderOpenrouter extends AIProvider {
         description: description,
         provider: "NOPE",
         iconUrl: iconUrl,
-        capabilities: <String, dynamic>{},
+        supportsImageInput: modelCapabilities.supportsImageInput,
+        supportsImageOutput: modelCapabilities.supportsImageOutput,
+        tunableParameters: supportedParams,
       );
     } catch (e, stackTrace) {
       if (kDebugMode) {
