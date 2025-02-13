@@ -11,6 +11,8 @@ import '../models/llm.dart';
 import '../widgets/model_selection_dialog.dart';
 import '../widgets/chat_list_sidebar.dart';
 import 'package:file_picker/file_picker.dart';
+import '../widgets/model_settings_sidebar.dart';
+
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -28,6 +30,9 @@ class _ChatScreenState extends State<ChatScreen> {
   String _streamedResponse = '';
   bool _contextCleared = false;
   String? _selectedImagePath;
+
+  bool _isSettingsSidebarOpen = false;
+  Map<String, dynamic> _modelSettings = {};
 
   Future<List<Chat>> _loadChats() async {
     return await DatabaseHelper.instance.getChats();
@@ -63,7 +68,10 @@ class _ChatScreenState extends State<ChatScreen> {
             ..add(userMessage);
 
       final stream = _provider.streamResponse(
-          _selectedModel!.id, contextMessages.join('\n'), imagePath: _selectedImagePath);
+          _selectedModel!.id,
+          contextMessages.join('\n'),
+          _modelSettings,
+          imagePath: _selectedImagePath);
 
       await for (final chunk in stream) {
         setState(() {
@@ -135,7 +143,10 @@ class _ChatScreenState extends State<ChatScreen> {
         settingsService: SettingsService(),
         modelService: AIProviderOpenrouter(),
         onModelSelected: (model) {
-          setState(() => _selectedModel = model);
+          setState(() {
+              _selectedModel = model;
+              _modelSettings = {}; // Reset settings for new model
+            });
           _createNewChat();
         },
       ),
@@ -153,88 +164,119 @@ class _ChatScreenState extends State<ChatScreen> {
     return models.firstWhere((m) => m.id == modelId);
   }
 
+  Widget _buildMainContent(AsyncSnapshot<List<Message>> snapshot) {
+    final messages = snapshot.data ?? [];
+
+    return GestureDetector(
+      onHorizontalDragStart: (details) {
+        if (details.globalPosition.dx > MediaQuery.of(context).size.width - 20) {
+          setState(() => _isSettingsSidebarOpen = true);
+        }
+      },
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              reverse: true,
+              padding: const EdgeInsets.all(12.0),
+              itemCount: messages.length + (_streamedResponse.isNotEmpty ? 1 : 0),
+              itemBuilder: (context, index) {
+                if (_streamedResponse.isNotEmpty && index == 0) {
+                  return ChatMessage(
+                    text: _streamedResponse,
+                    isUser: false,
+                    isStreaming: true,
+                  );
+                }
+                final message = messages.reversed.toList()[
+                    _streamedResponse.isNotEmpty ? index - 1 : index];
+                return Column(
+                  children: [
+                    if (_contextCleared && index == messages.length - 1)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 8.0),
+                        child: Text(
+                          'Context Cleared',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ),
+                    ChatMessage(
+                      text: message.text,
+                      isUser: message.isUser,
+                      isStreaming: false,
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+          _buildInput(),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('Monkeychat'),
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.settings),
-              onPressed: () => Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
-              ),
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Monkeychat'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.settings),
+            onPressed: () => Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const SettingsScreen()),
+            ),
+          ),
+        ],
+      ),
+      drawer: Drawer(
+        child: ChatListSidebar(
+          currentChatId: _currentChatId,
+          onChatSelected: (chatId) {
+            setState(() {
+              _currentChatId = chatId;
+              _isNewChat = false;
+            });
+            Navigator.pop(context);
+          },
+          onNewChat: _showModelSelection,
+          onDeleteAllChats: _deleteAllChats,
+          getModelForChat: _getModelForChat,
+        ),
+      ),
+      body: Stack(
+        children: [
+          // Main content area
+          FutureBuilder<List<Message>>(
+            future: _isNewChat
+                ? Future.value([])
+                : DatabaseHelper.instance.getMessages(_currentChatId),
+            builder: (context, snapshot) {
+              return _buildMainContent(snapshot);
+            },
+          ),
+
+          // Right sidebar overlay
+          if (_isSettingsSidebarOpen) ...[
+            // Semi-transparent background
+            GestureDetector(
+              onTap: () => setState(() => _isSettingsSidebarOpen = false),
+              child: Container(color: Colors.black54),
+            ),
+            // Settings sidebar
+            ModelSettingsSidebar(
+              model: _selectedModel,
+              parameters: _modelSettings,
+              onParametersChanged: (newParams) => setState(() => _modelSettings = newParams),
+              onDismissed: () => setState(() => _isSettingsSidebarOpen = false),
             ),
           ],
-        ),
-        drawer: Drawer(
-          child: ChatListSidebar(
-            currentChatId: _currentChatId,
-            onChatSelected: (chatId) {
-              setState(() {
-                _currentChatId = chatId;
-                _isNewChat = false;
-              });
-              Navigator.pop(context);
-            },
-            onNewChat: _showModelSelection,
-            onDeleteAllChats: _deleteAllChats,
-            getModelForChat: _getModelForChat,
-          ),
-        ),
-      body: FutureBuilder<List<Message>>(
-        future: _isNewChat
-            ? Future.value([])
-            : DatabaseHelper.instance.getMessages(_currentChatId),
-        builder: (context, snapshot) {
-          final messages = snapshot.data ?? [];
-
-          return Column(
-            children: [
-              Expanded(
-                child: ListView.builder(
-                  reverse: true,
-                  padding: const EdgeInsets.all(12.0),
-                  itemCount:
-                      messages.length + (_streamedResponse.isNotEmpty ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (_streamedResponse.isNotEmpty && index == 0) {
-                      return ChatMessage(
-                        text: _streamedResponse,
-                        isUser: false,
-                        isStreaming: true,
-                      );
-                    }
-                    final message = messages.reversed.toList()[
-                        _streamedResponse.isNotEmpty ? index - 1 : index];
-                    return Column(
-                      children: [
-                        if (_contextCleared && index == messages.length - 1)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8.0),
-                            child: Text(
-                              'Context Cleared',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontStyle: FontStyle.italic,
-                              ),
-                            ),
-                          ),
-                        ChatMessage(
-                          text: message.text,
-                          isUser: message.isUser,
-                          isStreaming: false,
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-              _buildInput(),
-            ],
-          );
-        },
+        ],
       ),
     );
   }

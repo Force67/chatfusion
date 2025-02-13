@@ -137,10 +137,10 @@ class AIProviderOpenrouter extends AIProvider {
 
       ORModelCapabilities modelCapabilities = _decodeCapabilities(capabilities);
 
-      // Iterate the supported parameters
-      List<String> supportedParams = json['supported_params'] != null
-          ? List<String>.from(json['supported_params'])
-          : <String>[];
+      List<String> supportedParams = [];
+      if (endpoint != null && endpoint.containsKey('supported_parameters')) {
+        supportedParams = List<String>.from(endpoint['supported_parameters']);
+      }
 
       // Don't ask me why...
       String iconUrl = "";
@@ -227,6 +227,7 @@ class AIProviderOpenrouter extends AIProvider {
   Stream<String> streamResponse(
     String modelId,
     String question,
+        Map<String, dynamic> params,
     {String? imagePath}
   ) async* {
     final url = Uri.parse('$_apiUrl/chat/completions');
