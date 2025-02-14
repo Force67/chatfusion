@@ -17,7 +17,7 @@ class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
 
   @override
-  _ChatScreenState createState() => _ChatScreenState();
+  State<ChatScreen> createState() => _ChatScreenState();
 }
 
 class _ChatScreenState extends State<ChatScreen> {
@@ -32,10 +32,6 @@ class _ChatScreenState extends State<ChatScreen> {
 
   bool _isSettingsSidebarOpen = false;
   Map<String, dynamic> _modelSettings = {};
-
-  Future<List<Chat>> _loadChats() async {
-    return await DatabaseHelper.instance.getChats();
-  }
 
   Future<void> _sendToProvider(String userMessage, {String? imagePath}) async {
     if (_selectedModel == null) {
@@ -96,9 +92,40 @@ class _ChatScreenState extends State<ChatScreen> {
     }
   }
 
+  static dynamic _findDefaultValueForParam(String name) {
+    switch (name) {
+      case 'temperature':
+        return 1.0; // Corrected from 0.5 to 1.0
+      case 'top_p':
+        return 1.0;
+      case 'top_k':
+        return 0;
+      case 'frequency_penalty':
+        return 0.0;
+      case 'presence_penalty':
+        return 0.0;
+      case 'repetition_penalty':
+        return 1.0;
+      case 'min_p':
+        return 0.0;
+      case 'top_a':
+        return 0.0;
+      case 'include_reasoning':
+        return false;
+      default:
+        return null; // Return null for parameters without a specified default
+    }
+  }
+
   Future<void> _createNewChat() async {
     if (_selectedModel == null) return;
 
+    // Initialize the model settings with the default values
+    // But only for parameters that are actually available to modify (as provided by the API)
+    // The default values
+    for (var settingName in _selectedModel!.tunableParameters) {
+      _modelSettings[settingName] = _findDefaultValueForParam(settingName);
+    }
 
     final newChat = Chat(
       id: 0,
@@ -221,6 +248,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   @override
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -238,10 +266,15 @@ class _ChatScreenState extends State<ChatScreen> {
       drawer: Drawer(
         child: ChatListSidebar(
           currentChatId: _currentChatId,
-          onChatSelected: (chatId) {
+          onChatSelected: (chatId) async {
+            final chat = await DatabaseHelper.instance.getChat(chatId);
+            final model = await _getModelForChat(chat.modelId);
+
             setState(() {
               _currentChatId = chatId;
               _isNewChat = false;
+              _selectedModel = model;
+              _modelSettings = chat.modelSettings ?? {};
             });
             Navigator.pop(context);
           },
@@ -264,12 +297,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
           // Right sidebar overlay
           if (_isSettingsSidebarOpen) ...[
-            // Semi-transparent background
             GestureDetector(
               onTap: () => setState(() => _isSettingsSidebarOpen = false),
               child: Container(color: Colors.black54),
             ),
-            // Settings sidebar
             ModelSettingsSidebar(
               model: _selectedModel,
               parameters: _modelSettings,

@@ -129,6 +129,15 @@ class DatabaseHelper {
     return maps.map((map) => Message.fromMap(map)).toList();
   }
 
+  Future<Chat> getChat(int chatId) async {
+    final db = await instance.database;
+    final maps = await db.query(
+      'chats',
+      where: 'id = ?',
+      whereArgs: [chatId],
+    );
+    return Chat.fromMap(maps.first);
+  }
   // Improved model caching with transaction
   Future<void> cacheModels(List<LLModel> models) async {
     final db = await instance.database;
