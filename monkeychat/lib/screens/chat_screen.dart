@@ -33,6 +33,8 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _contextCleared = false;
   String? _selectedImagePath;
 
+  bool _isResponding = false;
+
   bool _isSettingsSidebarOpen = false;
   Map<String, dynamic> _modelSettings = {};
 
@@ -57,7 +59,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
     setState(() {
       _streamedResponse = '';
-      _streamedReasoning = ''; // Reset reasoning too
+      _streamedReasoning = '';
+      _isResponding = true;
     });
 
     try {
@@ -91,15 +94,16 @@ class _ChatScreenState extends State<ChatScreen> {
       );
 
       await DatabaseHelper.instance.insertMessage(aiMessage);
-
-      setState(() {
-        _streamedResponse = '';
-        _streamedReasoning = '';
-      });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
+    } finally {
+      setState(() {
+        _streamedResponse = '';
+        _streamedReasoning = '';
+        _isResponding = false;
+      });
     }
   }
 
@@ -201,6 +205,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return models.firstWhere((m) => m.id == modelId);
   }
 
+  // Update the ListView.builder in _buildMainContent
   Widget _buildMainContent(AsyncSnapshot<List<Message>> snapshot) {
     final messages = snapshot.data ?? [];
 
@@ -216,11 +221,10 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: ListView.builder(
               reverse: true,
-              itemCount:
-                  messages.length + (_streamedResponse.isNotEmpty ? 1 : 0),
+              itemCount: messages.length + (_isResponding ? 1 : 0), // Modified line
               itemBuilder: (context, index) {
                 // Streaming message
-                if (_streamedResponse.isNotEmpty && index == 0) {
+                if (_isResponding && index == 0) { // Modified condition
                   return ChatMessage(
                     text: _streamedResponse,
                     isUser: false,
@@ -229,9 +233,9 @@ class _ChatScreenState extends State<ChatScreen> {
                   );
                 }
 
-                // Finalized messages
-                final message = messages.reversed
-                    .toList()[_streamedResponse.isNotEmpty ? index - 1 : index];
+                // Adjust index for finalized messages
+                final messageIndex = _isResponding ? index - 1 : index;
+                final message = messages.reversed.toList()[messageIndex];
 
                 return ChatMessage(
                   text: message.text,
@@ -248,7 +252,6 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  @override
   @override
   Widget build(BuildContext context) {
     return Scaffold(
