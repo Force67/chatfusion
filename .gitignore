@@ -2,5 +2,6 @@
 /monkeychat/macos/Runner
 /monkeychat/android-sdk
 /android-sdk
-/monkeychat/android/app
-/monkeychat/linux
+/monkeychat/android
+monkeychat/devtools_options.yaml
+*.lock

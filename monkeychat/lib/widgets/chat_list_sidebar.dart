@@ -2,9 +2,8 @@ import 'package:flutter/material.dart';
 import '../database/local_db.dart';
 import '../models/chat.dart';
 import '../models/llm.dart';
-import '../models/folder.dart';
 
-class ChatListSidebar extends StatefulWidget {
+class ChatListSidebar extends StatelessWidget {
   final int? currentChatId;
   final Function(int) onChatSelected;
   final Function() onNewChat;
@@ -20,81 +19,8 @@ class ChatListSidebar extends StatefulWidget {
     required this.getModelForChat,
   });
 
-  @override
-  State<ChatListSidebar> createState() => _ChatListSidebarState();
-}
-
-class _ChatListSidebarState extends State<ChatListSidebar> {
-  List<Folder> _folders = [];
-  int? _selectedFolderId;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadFolders();
-  }
-
-  Future<void> _loadFolders() async {
-    _folders = await DatabaseHelper.instance.getFolders();
-    setState(() {});
-  }
-
   Future<List<Chat>> _loadChats() async {
-    final db = DatabaseHelper.instance;
-    if (_selectedFolderId != null) {
-      final chatIds = await db.getChatsInFolder(_selectedFolderId!);
-      if (chatIds.isEmpty) {
-        return <Chat>[];
-      }
-      List<Chat> chats = [];
-      for (final chat in chatIds) {
-        final cht = await db.getChat(chat.id);
-        chats.add(cht);
-      }
-      return chats;
-    } else {
-      return await DatabaseHelper.instance.getChats();
-    }
-  }
-
-  Future<void> _createFolder(BuildContext context) async {
-    final TextEditingController folderNameController = TextEditingController();
-
-    await showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Create New Folder'),
-          content: TextField(
-            controller: folderNameController,
-            decoration: const InputDecoration(hintText: 'Folder Name'),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Cancel'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            TextButton(
-              child: const Text('Create'),
-              onPressed: () async {
-                final folderName = folderNameController.text.trim();
-                if (folderName.isNotEmpty) {
-                  final newFolder = Folder(
-                    name: folderName,
-                    createdAt: DateTime.now(),
-                  );
-                  await DatabaseHelper.instance.insertFolder(newFolder);
-                  await _loadFolders();
-                  Navigator.of(context).pop();
-                }
-              },
-            ),
-          ],
-        );
-      },
-    );
+    return await DatabaseHelper.instance.getChats();
   }
 
   @override
@@ -116,9 +42,7 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildHeader(context),
-            _buildFolderList(context),
             _buildChatList(context),
-            const Divider(),
             _buildDeleteButton(context),
           ],
         ),
@@ -157,7 +81,7 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
             child: FilledButton.icon(
               icon: const Icon(Icons.add, size: 20),
               label: const Text('New Chat'),
-              onPressed: widget.onNewChat,
+              onPressed: onNewChat,
               style: FilledButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 shape: RoundedRectangleBorder(
@@ -165,109 +89,6 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                 ),
               ),
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFolderList(BuildContext context) {
-    return ExpansionTile(
-      title: const Text('Folders'),
-      initiallyExpanded: true,
-      children: [
-        ..._folders.map((folder) => ListTile(
-              title: Text(folder.name),
-              leading: _selectedFolderId == folder.id
-                  ? const Icon(Icons.folder)
-                  : const Icon(Icons.folder_open),
-              trailing: PopupMenuButton(
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'rename',
-                    child: Text('Rename'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Text('Delete'),
-                  ),
-                ],
-                onSelected: (value) async {
-                  if (value == 'rename') {
-                    _renameFolder(context, folder);
-                  } else if (value == 'delete') {
-                    _confirmDeleteFolder(context, folder);
-                  }
-                },
-              ),
-              onTap: () {
-                setState(() {
-                  _selectedFolderId =
-                      _selectedFolderId == folder.id ? null : folder.id;
-                });
-              },
-            )),
-        ListTile(
-          leading: const Icon(Icons.create_new_folder),
-          title: const Text('New folder'),
-          onTap: () => _createFolder(context),
-        ),
-      ],
-    );
-  }
-
-  void _renameFolder(BuildContext context, Folder folder) async {
-    final controller = TextEditingController(text: folder.name);
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Rename Folder'),
-        content: TextField(controller: controller),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final newName = controller.text.trim();
-              if (newName.isNotEmpty) {
-                final updatedFolder = Folder(
-                  id: folder.id,
-                  name: newName,
-                  createdAt: folder.createdAt,
-                );
-                await DatabaseHelper.instance.updateFolder(updatedFolder);
-                await _loadFolders();
-                if (mounted) Navigator.pop(context);
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _confirmDeleteFolder(BuildContext context, Folder folder) async {
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Folder?'),
-        content: const Text('This will only remove the folder, not the chats.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              await DatabaseHelper.instance
-                  .deleteFolderAndRemoveChatsFromFolder(folder.id!);
-              await _loadFolders();
-              if (mounted) Navigator.pop(context);
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -311,13 +132,9 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                     const Divider(height: 1, indent: 16),
                 itemBuilder: (context, index) => _ChatListItem(
                   chat: chats[index],
-                  isSelected: widget.currentChatId == chats[index].id,
-                  onTap: () => widget.onChatSelected(chats[index].id),
-                  getModelForChat: widget.getModelForChat,
-                  folderId: _selectedFolderId,
-                  onFolderUpdated: () {
-                    setState(() {}); // Refresh sidebar after folder change
-                  },
+                  isSelected: currentChatId == chats[index].id,
+                  onTap: () => onChatSelected(chats[index].id),
+                  getModelForChat: getModelForChat,
                 ),
               ),
             );
@@ -359,7 +176,7 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
           TextButton(
             onPressed: () {
               Navigator.pop(context);
-              widget.onDeleteAllChats();
+              onDeleteAllChats();
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
@@ -369,43 +186,33 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
   }
 }
 
-class _ChatListItem extends StatefulWidget {
+class _ChatListItem extends StatelessWidget {
   final Chat chat;
   final bool isSelected;
   final VoidCallback onTap;
   final Future<LLModel?> Function(String) getModelForChat;
-  final int? folderId;
-  final VoidCallback onFolderUpdated;
 
   const _ChatListItem({
     required this.chat,
     required this.isSelected,
     required this.onTap,
     required this.getModelForChat,
-    this.folderId,
-    required this.onFolderUpdated,
-    Key? key,
-  }) : super(key: key);
+  });
 
-  @override
-  State<_ChatListItem> createState() => _ChatListItemState();
-}
-
-class _ChatListItemState extends State<_ChatListItem> {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: widget.isSelected
+      color: isSelected
           ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
           : Colors.transparent,
       child: InkWell(
-        onTap: widget.onTap,
+        onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(12),
-            border: widget.isSelected
+            border: isSelected
                 ? Border.all(color: Theme.of(context).colorScheme.primary)
                 : null,
           ),
@@ -419,14 +226,14 @@ class _ChatListItemState extends State<_ChatListItem> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.chat.title,
+                      chat.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.bodyLarge,
                     ),
                     const SizedBox(height: 4),
                     FutureBuilder<LLModel?>(
-                      future: widget.getModelForChat(widget.chat.modelId),
+                      future: getModelForChat(chat.modelId),
                       builder: (context, snapshot) => Text(
                         snapshot.hasData
                             ? 'Model: ${snapshot.data!.name}'
@@ -443,121 +250,9 @@ class _ChatListItemState extends State<_ChatListItem> {
                   ],
                 ),
               ),
-              _buildFolderAssignment(context),
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  Widget _buildFolderAssignment(BuildContext context) {
-    return FutureBuilder<List<Folder>>(
-      future: DatabaseHelper.instance.getFolders(),
-      builder: (context, foldersSnapshot) {
-        return FutureBuilder<List<Folder>>(
-          future: DatabaseHelper.instance.getFoldersForChat(widget.chat.id),
-          builder: (context, selectedFoldersSnapshot) {
-            final allFolders = foldersSnapshot.data ?? [];
-            final selectedFolders = selectedFoldersSnapshot.data ?? [];
-            final selectedFolderIds = selectedFolders.map((f) => f.id).toSet();
-
-            return IconButton(
-              icon: const Icon(Icons.folder_open),
-              onPressed: () => _showFolderSelectionDialog(
-                context,
-                allFolders,
-                selectedFolderIds,
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _showFolderSelectionDialog(
-    BuildContext context,
-    List<Folder> allFolders,
-    Set<int?> selectedFolderIds,
-  ) async {
-    // Create a temporary copy of selected folder IDs for local state management
-    final tempSelected = Set<int?>.from(selectedFolderIds);
-
-    await showDialog(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setState) {
-          return AlertDialog(
-            title: const Text('Select Folders'),
-            content: SizedBox(
-              width: double.maxFinite,
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: allFolders.length,
-                itemBuilder: (context, index) {
-                  final folder = allFolders[index];
-                  return CheckboxListTile(
-                    title: Text(folder.name),
-                    value: tempSelected.contains(folder.id),
-                    onChanged: (value) {
-                      setState(() {
-                        if (value == true) {
-                          tempSelected.add(folder.id);
-                        } else {
-                          tempSelected.remove(folder.id);
-                        }
-                      });
-                    },
-                  );
-                },
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () async {
-                  // Identify folders that were deselected
-                  final deselectedFolders =
-                      selectedFolderIds.difference(tempSelected);
-
-                  // Remove the chat from deselected folders
-                  for (final folderId in deselectedFolders) {
-                    if (folderId != null) {
-                      await DatabaseHelper.instance
-                          .removeChatFromFolder(widget.chat.id, folderId);
-                    }
-                  }
-
-                  // Identify newly selected folders
-                  final newlySelectedFolders =
-                      tempSelected.difference(selectedFolderIds);
-
-                  // Add the chat to newly selected folders
-                  for (final folderId in newlySelectedFolders) {
-                    if (folderId != null) {
-                      await DatabaseHelper.instance
-                          .addChatToFolder(widget.chat.id, folderId);
-                    }
-                  }
-
-                  // Update the selected folder IDs in the widget state
-                  selectedFolderIds.clear();
-                  selectedFolderIds.addAll(tempSelected);
-
-                  if (mounted) {
-                    Navigator.pop(context);
-                    widget.onFolderUpdated(); // Trigger sidebar refresh
-                  }
-                },
-                child: const Text('Save'),
-              ),
-            ],
-          );
-        },
       ),
     );
   }
