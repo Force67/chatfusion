@@ -63,9 +63,11 @@ class ChatMessage extends StatelessWidget {
   }
 
   void _showCopyMenu(BuildContext context) {
-    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
     final RenderBox textBox = context.findRenderObject() as RenderBox;
-    final Offset position = textBox.localToGlobal(Offset.zero, ancestor: overlay);
+    final Offset position =
+        textBox.localToGlobal(Offset.zero, ancestor: overlay);
 
     showMenu(
       context: context,

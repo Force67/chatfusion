@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/settings_service.dart';
-import '../database/database_helper.dart';
+import '../database/local_db.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});

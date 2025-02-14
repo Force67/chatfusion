@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart'; // Add this
-import 'package:http/http.dart' as http;  // Add this
+import 'package:http/http.dart' as http; // Add this
 import 'package:monkeychat/services/ai_provider.dart';
 import '../services/settings_service.dart';
 import '../models/llm.dart';
@@ -26,8 +26,8 @@ class ModelSelectionDialog extends StatefulWidget {
 class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
   late Future<List<LLModel>> _modelsFuture;
   String _searchQuery = '';
-  final _cacheManager = CacheManager(Config('svg_cache', maxNrOfCacheObjects: 20, stalePeriod: const Duration(days: 7)));
-
+  final _cacheManager = CacheManager(Config('svg_cache',
+      maxNrOfCacheObjects: 20, stalePeriod: const Duration(days: 7)));
 
   @override
   void initState() {
@@ -218,14 +218,15 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const CircularProgressIndicator();
           } else if (snapshot.hasError) {
-            print('Error loading SVG: ${snapshot.error}');  // Log the error
+            print('Error loading SVG: ${snapshot.error}'); // Log the error
             return const Icon(Icons.error); //Consider a different error icon
           } else if (snapshot.hasData && snapshot.data != null) {
             return SvgPicture.string(
               snapshot.data!,
               width: 32,
               height: 32,
-              placeholderBuilder: (BuildContext context) => const CircularProgressIndicator(),
+              placeholderBuilder: (BuildContext context) =>
+                  const CircularProgressIndicator(),
               // Disable network access for security
               //assetBundle: null,
               // Decoder specific properties
@@ -248,7 +249,6 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
     }
   }
 
-
   Future<String?> _loadCachedSvg(String url) async {
     try {
       final file = await _cacheManager.getFileFromCache(url);
@@ -258,13 +258,17 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
       }
 
       //print('Downloading SVG: $url');
-      final response = await http.get(Uri.parse(url));  //Consider adding headers or timeout
+      final response =
+          await http.get(Uri.parse(url)); //Consider adding headers or timeout
       if (response.statusCode == 200) {
-        await _cacheManager.putFile(url, response.bodyBytes, maxAge: const Duration(days: 7), fileExtension: 'svg');  //Cache for a week.
+        await _cacheManager.putFile(url, response.bodyBytes,
+            maxAge: const Duration(days: 7),
+            fileExtension: 'svg'); //Cache for a week.
         //print('SVG downloaded and cached: $url');
         return response.body;
       } else {
-        print('Failed to download SVG: $url, status code: ${response.statusCode}');
+        print(
+            'Failed to download SVG: $url, status code: ${response.statusCode}');
         return null; //Or throw an exception
       }
     } catch (e) {
@@ -272,9 +276,6 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
       return null; //Or throw the exception to be handled by the caller
     }
   }
-
-
-
 
   @override
   void dispose() {

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:monkeychat/services/ai_provider.dart';
-import '../database/database_helper.dart';
+import '../database/local_db.dart';
 import '../models/chat.dart';
 import '../models/message.dart';
 import '../widgets/chat_message.dart';
@@ -12,7 +12,6 @@ import '../widgets/model_selection_dialog.dart';
 import '../widgets/chat_list_sidebar.dart';
 import 'package:file_picker/file_picker.dart';
 import '../widgets/model_settings_sidebar.dart';
-
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -68,9 +67,7 @@ class _ChatScreenState extends State<ChatScreen> {
             ..add(userMessage);
 
       final stream = _provider.streamResponse(
-          _selectedModel!.id,
-          contextMessages.join('\n'),
-          _modelSettings,
+          _selectedModel!.id, contextMessages.join('\n'), _modelSettings,
           imagePath: _selectedImagePath);
 
       await for (final chunk in stream) {
@@ -102,11 +99,13 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _createNewChat() async {
     if (_selectedModel == null) return;
 
+
     final newChat = Chat(
       id: 0,
       title: 'Chat with ${_selectedModel!.name}',
       modelId: _selectedModel!.id,
       createdAt: DateTime.now(),
+      modelSettings: _modelSettings,
     );
 
     _currentChatId = await DatabaseHelper.instance.insertChat(newChat);
@@ -144,9 +143,9 @@ class _ChatScreenState extends State<ChatScreen> {
         modelService: AIProviderOpenrouter(),
         onModelSelected: (model) {
           setState(() {
-              _selectedModel = model;
-              _modelSettings = {}; // Reset settings for new model
-            });
+            _selectedModel = model;
+            _modelSettings = {}; // Reset settings for new model
+          });
           _createNewChat();
         },
       ),
@@ -169,7 +168,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
     return GestureDetector(
       onHorizontalDragStart: (details) {
-        if (details.globalPosition.dx > MediaQuery.of(context).size.width - 20) {
+        if (details.globalPosition.dx >
+            MediaQuery.of(context).size.width - 20) {
           setState(() => _isSettingsSidebarOpen = true);
         }
       },
@@ -179,7 +179,8 @@ class _ChatScreenState extends State<ChatScreen> {
             child: ListView.builder(
               reverse: true,
               padding: const EdgeInsets.all(12.0),
-              itemCount: messages.length + (_streamedResponse.isNotEmpty ? 1 : 0),
+              itemCount:
+                  messages.length + (_streamedResponse.isNotEmpty ? 1 : 0),
               itemBuilder: (context, index) {
                 if (_streamedResponse.isNotEmpty && index == 0) {
                   return ChatMessage(
@@ -188,8 +189,8 @@ class _ChatScreenState extends State<ChatScreen> {
                     isStreaming: true,
                   );
                 }
-                final message = messages.reversed.toList()[
-                    _streamedResponse.isNotEmpty ? index - 1 : index];
+                final message = messages.reversed
+                    .toList()[_streamedResponse.isNotEmpty ? index - 1 : index];
                 return Column(
                   children: [
                     if (_contextCleared && index == messages.length - 1)
@@ -272,7 +273,8 @@ class _ChatScreenState extends State<ChatScreen> {
             ModelSettingsSidebar(
               model: _selectedModel,
               parameters: _modelSettings,
-              onParametersChanged: (newParams) => setState(() => _modelSettings = newParams),
+              onParametersChanged: (newParams) =>
+                  setState(() => _modelSettings = newParams),
               onDismissed: () => setState(() => _isSettingsSidebarOpen = false),
             ),
           ],
@@ -286,99 +288,104 @@ class _ChatScreenState extends State<ChatScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
       color: Colors.grey[850],
       child: Column(
-            children: [
-              if (_selectedImagePath != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.image, color: Colors.blueGrey, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Attached: ${_selectedImagePath!.split('/').last}',
-                          style: const TextStyle(color: Colors.white70),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close, size: 18, color: Colors.blueGrey),
-                        onPressed: () => setState(() => _selectedImagePath = null),
-                      ),
-                    ],
-                  ),
-                ),
-                Row(
         children: [
-          IconButton(
-            icon: const Icon(Icons.clear_all, color: Colors.blueGrey),
-            onPressed: _clearContext,
-          ),
-          // Add the media selector button here
-          IconButton(
-            icon: const Icon(Icons.attach_file, color: Colors.blueGrey),
-            tooltip: 'Attach file',
-            onPressed: () async {
-              if (_selectedModel == null) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please select a model first')),
-                );
-                return;
-              }
-
-              final FileType fileType = _selectedModel!.supportsImageInput
-                  ? FileType.image
-                  : FileType.custom;
-
-              final List<String>? allowedExtensions = _selectedModel!.supportsImageInput
-                  ? null
-                  : ['txt', 'text'];
-
-              try {
-                final FilePickerResult? result = await FilePicker.platform.pickFiles(
-                  type: fileType,
-                  allowedExtensions: allowedExtensions,
-                );
-
-                if (result != null && result.files.isNotEmpty) {
-                  final PlatformFile file = result.files.first;
-                  if (_selectedModel!.supportsImageInput) {
-                    setState(() {
-                      _selectedImagePath = file.path;
-                    });
-                  } else {
-                    // Handle text file selection logic
-                  }
-                }
-              } catch (e) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Error selecting file: $e')),
-                );
-              }
-            },
-          ),
-          Expanded(
-            child: TextField(
-              controller: _textController,
-              style: const TextStyle(color: Colors.white),
-              decoration: InputDecoration(
-                hintText: 'Type your message...',
-                hintStyle: const TextStyle(color: Colors.white70),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(30.0),
-                ),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 20.0),
+          if (_selectedImagePath != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8.0),
+              child: Row(
+                children: [
+                  const Icon(Icons.image, color: Colors.blueGrey, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Attached: ${_selectedImagePath!.split('/').last}',
+                      style: const TextStyle(color: Colors.white70),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close,
+                        size: 18, color: Colors.blueGrey),
+                    onPressed: () => setState(() => _selectedImagePath = null),
+                  ),
+                ],
               ),
-              onSubmitted: _handleSubmitted,
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.send, color: Colors.blueGrey),
-            onPressed: () => _handleSubmitted(_textController.text),
+          Row(
+            children: [
+              IconButton(
+                icon: const Icon(Icons.clear_all, color: Colors.blueGrey),
+                onPressed: _clearContext,
+              ),
+              // Add the media selector button here
+              IconButton(
+                icon: const Icon(Icons.attach_file, color: Colors.blueGrey),
+                tooltip: 'Attach file',
+                onPressed: () async {
+                  if (_selectedModel == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                          content: Text('Please select a model first')),
+                    );
+                    return;
+                  }
+
+                  final FileType fileType = _selectedModel!.supportsImageInput
+                      ? FileType.image
+                      : FileType.custom;
+
+                  final List<String>? allowedExtensions =
+                      _selectedModel!.supportsImageInput
+                          ? null
+                          : ['txt', 'text'];
+
+                  try {
+                    final FilePickerResult? result =
+                        await FilePicker.platform.pickFiles(
+                      type: fileType,
+                      allowedExtensions: allowedExtensions,
+                    );
+
+                    if (result != null && result.files.isNotEmpty) {
+                      final PlatformFile file = result.files.first;
+                      if (_selectedModel!.supportsImageInput) {
+                        setState(() {
+                          _selectedImagePath = file.path;
+                        });
+                      } else {
+                        // Handle text file selection logic
+                      }
+                    }
+                  } catch (e) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error selecting file: $e')),
+                    );
+                  }
+                },
+              ),
+              Expanded(
+                child: TextField(
+                  controller: _textController,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: InputDecoration(
+                    hintText: 'Type your message...',
+                    hintStyle: const TextStyle(color: Colors.white70),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(30.0),
+                    ),
+                    contentPadding:
+                        const EdgeInsets.symmetric(horizontal: 20.0),
+                  ),
+                  onSubmitted: _handleSubmitted,
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.send, color: Colors.blueGrey),
+                onPressed: () => _handleSubmitted(_textController.text),
+              ),
+            ],
           ),
         ],
-      ),
-            ],
       ),
     );
   }

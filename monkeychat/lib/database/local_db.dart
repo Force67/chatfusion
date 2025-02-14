@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/chat.dart';
@@ -8,6 +9,7 @@ import 'dart:convert';
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._private();
   static Database? _database;
+  static const int _version = 2; // Updated version
 
   DatabaseHelper._private();
 
@@ -19,10 +21,14 @@ class DatabaseHelper {
 
   Future<Database> _initDatabase() async {
     final path = join(await getDatabasesPath(), 'chat_database.db');
+    if (kDebugMode) {
+      print('Database path: $path');
+    }
     return openDatabase(
       path,
       onCreate: _onCreate,
-      version: 1,
+      onUpgrade: _onUpgrade,
+      version: _version,
     );
   }
 
@@ -32,7 +38,8 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         title TEXT NOT NULL,
         model_id TEXT NOT NULL,
-        created_at TEXT NOT NULL
+        created_at TEXT NOT NULL,
+        params TEXT NOT NULL
       )
     ''');
 
@@ -54,36 +61,16 @@ class DatabaseHelper {
         cached_at TEXT NOT NULL
       )
     ''');
-
-    print('DBHELPER: Database tables created');
   }
 
-  Future<void> clearAll() async {
-    final db = await instance.database;
-
-    // Clear all tables
-    await db.delete('chats');
-    await db.delete('messages');
-    await db.delete('cached_models');
-
-    print('DBHELPER: All data cleared from tables');
-
-    // Close the database
-    await db.close();
-    _database = null;
-
-    // Delete the database file
-    final path = join(await getDatabasesPath(), 'chat_database.db');
-    await deleteDatabase(path);
-
-    print('DBHELPER: Database file deleted');
-  }
-
-  Future<void> clearChats() async {
-    final db = await instance.database;
-    await db.delete('chats');
-    await db.delete('messages');
-    print('DBHELPER: Chats cleared');
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Add params column to existing chats table
+      await db.execute('''
+        ALTER TABLE chats 
+        ADD COLUMN params TEXT NOT NULL DEFAULT '{}'
+      ''');
+    }
   }
 
   Future<int> insertChat(Chat chat) async {
@@ -92,28 +79,35 @@ class DatabaseHelper {
       'title': chat.title,
       'model_id': chat.modelId,
       'created_at': chat.createdAt.toIso8601String(),
+      'params': jsonEncode(chat.modelSettings),
     });
   }
 
-  Future<List<LLModel>> getCachedModels() async {
+  Future<List<Chat>> getChats() async {
     final db = await instance.database;
-    final maps = await db.query('cached_models');
-    
-    return maps.map((map) => LLModel.fromJson(jsonDecode(map['data'] as String))).toList();
+    final maps = await db.query('chats', orderBy: 'created_at DESC');
+    return maps.map((map) => Chat.fromMap(map)).toList();
   }
 
-  Future<void> cacheModels(List<LLModel> models) async {
+  // Updated clear methods to handle schema changes
+  Future<void> clearAll() async {
     final db = await instance.database;
-    await db.delete('cached_models');
-    for (final model in models) {
-      await db.insert('cached_models', {
-        'model_id': model.id,
-        'data': jsonEncode(model.toJson()),
-        'cached_at': DateTime.now().toIso8601String(),
-      });
-    }
+    await db.transaction((txn) async {
+      await txn.delete('chats');
+      await txn.delete('messages');
+      await txn.delete('cached_models');
+    });
   }
 
+  Future<void> clearChats() async {
+    final db = await instance.database;
+    await db.transaction((txn) async {
+      await txn.delete('chats');
+      await txn.delete('messages');
+    });
+  }
+
+  // Rest of the methods remain similar with added type safety...
   Future<int> insertMessage(Message message) async {
     final db = await instance.database;
     return db.insert('messages', {
@@ -122,12 +116,6 @@ class DatabaseHelper {
       'is_user': message.isUser ? 1 : 0,
       'created_at': message.createdAt.toIso8601String(),
     });
-  }
-
-  Future<List<Chat>> getChats() async {
-    final db = await instance.database;
-    final maps = await db.query('chats', orderBy: 'created_at DESC');
-    return maps.map((map) => Chat.fromMap(map)).toList();
   }
 
   Future<List<Message>> getMessages(int chatId) async {
@@ -139,5 +127,30 @@ class DatabaseHelper {
       orderBy: 'created_at',
     );
     return maps.map((map) => Message.fromMap(map)).toList();
+  }
+
+  // Improved model caching with transaction
+  Future<void> cacheModels(List<LLModel> models) async {
+    final db = await instance.database;
+    await db.transaction((txn) async {
+      await txn.delete('cached_models');
+      for (final model in models) {
+        await txn.insert('cached_models', {
+          'model_id': model.id,
+          'data': jsonEncode(model.toJson()),
+          'cached_at': DateTime.now().toIso8601String(),
+        });
+      }
+    });
+  }
+
+  Future<List<LLModel>> getCachedModels() async {
+    final db = await instance.database;
+    final maps = await db.query('cached_models');
+    return maps.map((map) {
+      return LLModel.fromJson(
+        jsonDecode(map['data'] as String),
+      );
+    }).toList();
   }
 }

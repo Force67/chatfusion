@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import '../models/chat.dart';
-import '../database/database_helper.dart';
+import '../database/local_db.dart';
 
 class ChatSettingsScreen extends StatefulWidget {
   final Chat chat;

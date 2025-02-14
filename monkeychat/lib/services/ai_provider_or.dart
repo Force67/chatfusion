@@ -6,7 +6,7 @@ import 'package:mime/mime.dart';
 
 import 'package:monkeychat/services/ai_provider.dart';
 import 'package:monkeychat/services/settings_service.dart';
-import '../database/database_helper.dart';
+import '../database/local_db.dart';
 import '../models/llm.dart';
 
 // What a model on OR is capable of
@@ -29,65 +29,65 @@ class AIProviderOpenrouter extends AIProvider {
 
   ORModelCapabilities _decodeCapabilities(String ioString) {
     final parts = ioString.split('->').map((e) => e.trim()).toList();
-      if (parts.length != 2) {
-        throw ArgumentError('Invalid format: Use "input_types->output_types"');
-      }
+    if (parts.length != 2) {
+      throw ArgumentError('Invalid format: Use "input_types->output_types"');
+    }
 
-      final inputTypes = parts[0]
-          .split('+')
-          .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
-          .toList();
-      final outputTypes = parts[1]
-          .split('+')
-          .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
-          .toList();
+    final inputTypes = parts[0]
+        .split('+')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
+    final outputTypes = parts[1]
+        .split('+')
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .toList();
 
-      if (inputTypes.isEmpty || outputTypes.isEmpty) {
-        throw ArgumentError('Must specify at least one input and output type');
-      }
+    if (inputTypes.isEmpty || outputTypes.isEmpty) {
+      throw ArgumentError('Must specify at least one input and output type');
+    }
 
-      const allowedTypes = {'text', 'image'};
+    const allowedTypes = {'text', 'image'};
 
-      void validateTypes(List<String> types, String category) {
-        for (final type in types) {
-          if (!allowedTypes.contains(type)) {
-            throw ArgumentError('Invalid $category type: $type');
-          }
+    void validateTypes(List<String> types, String category) {
+      for (final type in types) {
+        if (!allowedTypes.contains(type)) {
+          throw ArgumentError('Invalid $category type: $type');
         }
       }
+    }
 
-      validateTypes(inputTypes, 'input');
-      validateTypes(outputTypes, 'output');
+    validateTypes(inputTypes, 'input');
+    validateTypes(outputTypes, 'output');
 
-      final config = ORModelCapabilities();
+    final config = ORModelCapabilities();
 
-      // Process input types
-      for (final type in inputTypes) {
-        switch (type) {
-          case 'text':
-            config.supportsTextInput = true;
-            break;
-          case 'image':
-            config.supportsImageInput = true;
-            break;
-        }
+    // Process input types
+    for (final type in inputTypes) {
+      switch (type) {
+        case 'text':
+          config.supportsTextInput = true;
+          break;
+        case 'image':
+          config.supportsImageInput = true;
+          break;
       }
+    }
 
-      // Process output types
-      for (final type in outputTypes) {
-        switch (type) {
-          case 'text':
-            config.supportsTextOutput = true;
-            break;
-          case 'image':
-            config.supportsImageOutput = true;
-            break;
-        }
+    // Process output types
+    for (final type in outputTypes) {
+      switch (type) {
+        case 'text':
+          config.supportsTextOutput = true;
+          break;
+        case 'image':
+          config.supportsImageOutput = true;
+          break;
       }
+    }
 
-      return config;
+    return config;
   }
 
   // see: https://openrouter.ai/api/frontend/models
@@ -126,7 +126,6 @@ class AIProviderOpenrouter extends AIProvider {
         description = descriptionJson.length > maxDescriptionLength
             ? descriptionJson.substring(0, maxDescriptionLength)
             : descriptionJson;
-
       } else {
         description = "No Description provided";
         if (kDebugMode) {
@@ -171,7 +170,7 @@ class AIProviderOpenrouter extends AIProvider {
     }
   }
 
-   @override
+  @override
   Future<List<LLModel>> getModels({bool forceRefresh = false}) async {
     final cachedModels = await _getCachedModels();
     if (cachedModels.isNotEmpty && !forceRefresh) {
@@ -215,7 +214,6 @@ class AIProviderOpenrouter extends AIProvider {
     return cachedModels;
   }
 
-
   @override
   Future<String> fetchImageURL(String modelId) async {
     final models = await getModels();
@@ -225,11 +223,8 @@ class AIProviderOpenrouter extends AIProvider {
 
   @override
   Stream<String> streamResponse(
-    String modelId,
-    String question,
-        Map<String, dynamic> params,
-    {String? imagePath}
-  ) async* {
+      String modelId, String question, Map<String, dynamic> params,
+      {String? imagePath}) async* {
     final url = Uri.parse('$_apiUrl/chat/completions');
     final apiKey = await _settingsService.getApiKey();
     if (apiKey == null) {
@@ -257,10 +252,7 @@ class AIProviderOpenrouter extends AIProvider {
       final dataUri = 'data:$mimeType;base64,$base64Image';
 
       messageContent = [
-        {
-          'type': 'text',
-          'text': question
-        },
+        {'type': 'text', 'text': question},
         {
           'type': 'image_url',
           'image_url': {
@@ -276,10 +268,7 @@ class AIProviderOpenrouter extends AIProvider {
     final payload = {
       'model': modelId,
       'messages': [
-        {
-          'role': 'user',
-          'content': messageContent
-        }
+        {'role': 'user', 'content': messageContent}
       ],
       'stream': true,
     };
@@ -294,7 +283,8 @@ class AIProviderOpenrouter extends AIProvider {
     if (streamedResponse.statusCode == 200) {
       String buffer = '';
 
-      await for (final chunk in streamedResponse.stream.transform(utf8.decoder)) {
+      await for (final chunk
+          in streamedResponse.stream.transform(utf8.decoder)) {
         buffer += chunk;
 
         while (true) {
@@ -320,7 +310,8 @@ class AIProviderOpenrouter extends AIProvider {
       }
     } else {
       print('Request failed with status code: ${streamedResponse.statusCode}');
-      throw Exception('Request failed with status code: ${streamedResponse.statusCode}');
+      throw Exception(
+          'Request failed with status code: ${streamedResponse.statusCode}');
     }
   }
 }
