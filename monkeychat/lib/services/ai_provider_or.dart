@@ -246,7 +246,7 @@ class AIProviderOpenrouter extends AIProvider {
   }
 
   @override
-  Stream<String> streamResponse(
+  Stream<TokenEvent> streamResponse(
       String modelId, String question, Map<String, dynamic> params,
       {String? imagePath}) async* {
     final url = Uri.parse('$_apiUrl/chat/completions');
@@ -305,9 +305,12 @@ class AIProviderOpenrouter extends AIProvider {
       if (params[key] == null) {
         continue;
       }
-      
+
       payload[key] = params[key];
     }
+
+    bool includeReasoning = params.containsKey("include_reasoning") &&
+        params["include_reasoning"] == true;
 
     // Rest of the original stream handling remains the same
     final request = http.Request('POST', url)
@@ -336,18 +339,29 @@ class AIProviderOpenrouter extends AIProvider {
 
             try {
               final dataObj = jsonDecode(data);
-              final content = dataObj['choices'][0]['delta']['content'];
-              if (content != null) yield content;
+              final delta = dataObj['choices'][0]['delta'];
+
+              // Handle content tokens
+              if (delta.containsKey('content')) {
+                final content = delta['content'];
+                if (content != null) {
+                  yield TokenEvent(TokenEventType.response, content);
+                }
+              }
+
+              // Handle reasoning tokens if enabled
+              if (includeReasoning && delta.containsKey('reasoning')) {
+                final reasoning = delta['reasoning'];
+                if (reasoning != null) {
+                  yield TokenEvent(TokenEventType.reasoning, reasoning);
+                }
+              }
             } catch (e) {
               // Ignore JSON decode errors
             }
           }
         }
       }
-    } else {
-      print('Request failed with status code: ${streamedResponse.statusCode}');
-      throw Exception(
-          'Request failed with status code: ${streamedResponse.statusCode}');
     }
   }
 }

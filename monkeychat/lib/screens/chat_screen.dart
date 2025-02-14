@@ -26,7 +26,10 @@ class _ChatScreenState extends State<ChatScreen> {
   int _currentChatId = 0;
   bool _isNewChat = true;
   LLModel? _selectedModel;
+
   String _streamedResponse = '';
+  String _streamedReasoning = '';
+
   bool _contextCleared = false;
   String? _selectedImagePath;
 
@@ -45,6 +48,7 @@ class _ChatScreenState extends State<ChatScreen> {
       id: 0,
       chatId: _currentChatId,
       text: userMessage,
+      reasoning: "",
       isUser: true,
       createdAt: DateTime.now(),
     );
@@ -68,7 +72,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
       await for (final chunk in stream) {
         setState(() {
-          _streamedResponse += chunk; // Append the chunk to the response
+          if (chunk.type == TokenEventType.response) {
+            _streamedResponse += chunk.text;
+          } else if (chunk.type == TokenEventType.reasoning) {
+            _streamedReasoning += chunk.text;
+          }
         });
       }
 
@@ -76,6 +84,7 @@ class _ChatScreenState extends State<ChatScreen> {
         id: 0,
         chatId: _currentChatId,
         text: _streamedResponse,
+        reasoning: _streamedReasoning,
         isUser: false,
         createdAt: DateTime.now(),
       );
@@ -95,7 +104,7 @@ class _ChatScreenState extends State<ChatScreen> {
   static dynamic _findDefaultValueForParam(String name) {
     switch (name) {
       case 'temperature':
-        return 1.0; // Corrected from 0.5 to 1.0
+        return 1.0;
       case 'top_p':
         return 1.0;
       case 'top_k':
@@ -111,7 +120,7 @@ class _ChatScreenState extends State<ChatScreen> {
       case 'top_a':
         return 0.0;
       case 'include_reasoning':
-        return false;
+        return true;
       default:
         return null; // Return null for parameters without a specified default
     }
@@ -214,6 +223,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     text: _streamedResponse,
                     isUser: false,
                     isStreaming: true,
+                    reasoning: _streamedReasoning,
                   );
                 }
                 final message = messages.reversed
@@ -233,6 +243,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ChatMessage(
                       text: message.text,
+                      reasoning: message.reasoning,
                       isUser: message.isUser,
                       isStreaming: false,
                     ),

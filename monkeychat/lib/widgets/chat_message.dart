@@ -1,18 +1,27 @@
 import 'package:flutter/material.dart';
 import 'package:latext/latext.dart';
-import 'package:flutter/services.dart'; // For Clipboard
+import 'package:flutter/services.dart';
 
-class ChatMessage extends StatelessWidget {
+class ChatMessage extends StatefulWidget {
   final String text;
   final bool isUser;
   final bool isStreaming;
+  final String? reasoning;
 
   const ChatMessage({
     super.key,
     required this.text,
     required this.isUser,
     this.isStreaming = false,
+    this.reasoning,
   });
+
+  @override
+  State<ChatMessage> createState() => _ChatMessageState();
+}
+
+class _ChatMessageState extends State<ChatMessage> {
+  bool _showReasoning = false;
 
   @override
   Widget build(BuildContext context) {
@@ -21,25 +30,65 @@ class ChatMessage extends StatelessWidget {
       onSecondaryTap: () => _showCopyMenu(context),
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4.0),
-        alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+        alignment: widget.isUser ? Alignment.centerRight : Alignment.centerLeft,
         child: Column(
-          crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment: widget.isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             Container(
               constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.7, // Limit the maximum width
+                maxWidth: MediaQuery.of(context).size.width * 0.7,
               ),
               padding: const EdgeInsets.all(12.0),
               decoration: BoxDecoration(
-                color: isUser ? Colors.blueGrey : Colors.grey[800],
+                color: widget.isUser ? Colors.blueGrey : Colors.grey[800],
                 borderRadius: BorderRadius.circular(12.0),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  isStreaming
+                  // Reasoning toggle and content
+                  if (!widget.isUser && widget.reasoning != null && widget.reasoning!.isNotEmpty)
+                    Column(
+                      children: [
+                        InkWell(
+                          onTap: () => setState(() => _showReasoning = !_showReasoning),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Thinking Process',
+                                style: TextStyle(
+                                  color: Colors.blue[200],
+                                  fontSize: 12,
+                                ),
+                              ),
+                              Icon(
+                                _showReasoning ? Icons.expand_less : Icons.expand_more,
+                                size: 16,
+                                color: Colors.blue[200],
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (_showReasoning)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8.0),
+                            child: LaTexT(
+                              laTeXCode: Text(
+                                _convertToLaTeX(widget.reasoning!),
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  // Main message content
+                  widget.isStreaming
                       ? SelectableText(
-                          text,
+                          widget.text,
                           style: const TextStyle(color: Colors.white),
                         )
                       : SelectableRegion(
@@ -47,18 +96,19 @@ class ChatMessage extends StatelessWidget {
                           focusNode: FocusNode(),
                           child: LaTexT(
                             laTeXCode: Text(
-                              _convertToLaTeX(text),
+                              _convertToLaTeX(widget.text),
                               style: const TextStyle(color: Colors.white),
                             ),
                           ),
                         ),
-                  const SizedBox(height: 8), // Add spacing between text and button
+                  const SizedBox(height: 8),
+                  // Copy button
                   Align(
                     alignment: Alignment.centerRight,
                     child: IconButton(
                       icon: const Icon(Icons.copy, size: 16, color: Colors.white),
                       onPressed: () => _copyToClipboard(context),
-                      tooltip: 'Copy whole message', // Tooltip for better UX
+                      tooltip: 'Copy whole message',
                     ),
                   ),
                 ],
@@ -71,11 +121,9 @@ class ChatMessage extends StatelessWidget {
   }
 
   void _showCopyMenu(BuildContext context) {
-    final RenderBox overlay =
-        Overlay.of(context).context.findRenderObject() as RenderBox;
+    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
     final RenderBox textBox = context.findRenderObject() as RenderBox;
-    final Offset position =
-        textBox.localToGlobal(Offset.zero, ancestor: overlay);
+    final Offset position = textBox.localToGlobal(Offset.zero, ancestor: overlay);
 
     showMenu(
       context: context,
@@ -95,7 +143,7 @@ class ChatMessage extends StatelessWidget {
   }
 
   void _copyToClipboard(BuildContext context) {
-    Clipboard.setData(ClipboardData(text: text));
+    Clipboard.setData(ClipboardData(text: widget.text));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Message copied to clipboard')),
     );

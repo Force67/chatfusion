@@ -48,6 +48,7 @@ class DatabaseHelper {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         chat_id INTEGER NOT NULL,
         text TEXT NOT NULL,
+        reasoning TEXT,
         is_user INTEGER NOT NULL,
         created_at TEXT NOT NULL,
         FOREIGN KEY(chat_id) REFERENCES chats(id)
@@ -61,6 +62,7 @@ class DatabaseHelper {
         cached_at TEXT NOT NULL
       )
     ''');
+    print("CREATED THE DB");
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -113,6 +115,7 @@ class DatabaseHelper {
     return db.insert('messages', {
       'chat_id': message.chatId,
       'text': message.text,
+      'reasoning': message.reasoning,
       'is_user': message.isUser ? 1 : 0,
       'created_at': message.createdAt.toIso8601String(),
     });
@@ -138,6 +141,7 @@ class DatabaseHelper {
     );
     return Chat.fromMap(maps.first);
   }
+
   // Improved model caching with transaction
   Future<void> cacheModels(List<LLModel> models) async {
     final db = await instance.database;
