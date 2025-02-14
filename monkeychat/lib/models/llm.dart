@@ -6,6 +6,8 @@ class LLModel {
   final String iconUrl;
   final bool supportsImageInput;
   final bool supportsImageOutput;
+  final bool supportsReasoning;
+  final bool supportsReasoningDisplay;
   final List<String> tunableParameters;
 
   LLModel({
@@ -16,6 +18,8 @@ class LLModel {
     required this.iconUrl,
     required this.supportsImageInput,
     required this.supportsImageOutput,
+    required this.supportsReasoning,
+    required this.supportsReasoningDisplay,
     required this.tunableParameters,
   });
 
@@ -36,6 +40,8 @@ class LLModel {
         iconUrl: json['provider']['icon_url'],
         supportsImageInput: json['capabilities']['supports_image_input'],
         supportsImageOutput: json['capabilities']['supports_image_output'],
+        supportsReasoning: json['capabilities']['supports_reasoning'],
+        supportsReasoningDisplay: json['capabilities']['supports_reasoning_display'],
         tunableParameters: json['tunable_parameters'] != null
             ? List<String>.from(json['tunable_parameters'])
             : [],
@@ -50,6 +56,8 @@ class LLModel {
         'capabilities': {
           'supports_image_input': supportsImageInput,
           'supports_image_output': supportsImageOutput,
+          'supports_reasoning': supportsReasoning,
+          'supports_reasoning_display': supportsReasoningDisplay,
         },
         'tunable_parameters': tunableParameters,
       };

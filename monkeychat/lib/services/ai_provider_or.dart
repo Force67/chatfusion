@@ -90,6 +90,18 @@ class AIProviderOpenrouter extends AIProvider {
     return config;
   }
 
+  final List<String> additionalKnownReasoningModels = [
+    // *SOME* AI Vendors insist on not showing the COT
+    "deepseek/deepseek-r1",
+    "openai/o3-mini-high",
+    "openai/o3-mini",
+    "openai/o1-mini-2024-09-12",
+    "openai/o1-mini",
+    "openai/o1",
+    "openai/o1-preview",
+    "openai/o1-preview-2024-09-12"
+  ];
+
   // see: https://openrouter.ai/api/frontend/models
   LLModel? _ingestLLMInfo(Map<String, dynamic> json) {
     try {
@@ -141,6 +153,11 @@ class AIProviderOpenrouter extends AIProvider {
         supportedParams = List<String>.from(endpoint['supported_parameters']);
       }
 
+      /*bool doesReasoing = supportedParams.contains('include_reasoning');
+      if (doesReasoing) {
+        print('Model $shortName supports reasoning');
+      }*/
+
       // Don't ask me why...
       String iconUrl = "";
       if (endpoint != null) {
@@ -152,6 +169,11 @@ class AIProviderOpenrouter extends AIProvider {
         }
       }
 
+      bool doesReasoning = endpoint["supports_reasoning"];
+      if (!doesReasoning) {
+        doesReasoning = additionalKnownReasoningModels.contains(permaslug);
+      }
+
       return LLModel(
         id: permaslug,
         name: shortName,
@@ -160,6 +182,8 @@ class AIProviderOpenrouter extends AIProvider {
         iconUrl: iconUrl,
         supportsImageInput: modelCapabilities.supportsImageInput,
         supportsImageOutput: modelCapabilities.supportsImageOutput,
+        supportsReasoningDisplay: endpoint["supports_reasoning"],
+        supportsReasoning: doesReasoning,
         tunableParameters: supportedParams,
       );
     } catch (e, stackTrace) {

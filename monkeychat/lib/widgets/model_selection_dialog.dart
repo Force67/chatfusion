@@ -26,6 +26,8 @@ class ModelSelectionDialog extends StatefulWidget {
 class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
   late Future<List<LLModel>> _modelsFuture;
   String _searchQuery = '';
+  bool _filterByReasoning = false;
+  bool _filterByImageInput = false;
   final _cacheManager = CacheManager(Config('svg_cache',
       maxNrOfCacheObjects: 20, stalePeriod: const Duration(days: 7)));
 
@@ -41,7 +43,7 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
     });
   }
 
-  @override
+    @override
   Widget build(BuildContext context) {
     return Dialog(
       child: ConstrainedBox(
@@ -53,21 +55,44 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
               actions: [
                 IconButton(
                   icon: const Icon(Icons.refresh),
-                  onPressed: () {
-                    _refreshModels();
-                  },
+                  onPressed: _refreshModels,
                 ),
               ],
             ),
             Padding(
               padding: const EdgeInsets.all(8.0),
-              child: TextField(
-                decoration: const InputDecoration(
-                  hintText: 'Search models...',
-                  prefixIcon: Icon(Icons.search),
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (value) => setState(() => _searchQuery = value),
+              child: Column(
+                children: [
+                  TextField(
+                    decoration: const InputDecoration(
+                      hintText: 'Search models...',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (value) => setState(() => _searchQuery = value),
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      FilterChip(
+                        label: const Text('Supports Reasoning'),
+                        selected: _filterByReasoning,
+                        onSelected: (value) => setState(() {
+                          _filterByReasoning = value;
+                        }),
+                      ),
+                      const SizedBox(width: 8),
+                      FilterChip(
+                        label: const Text('Supports Image Input'),
+                        selected: _filterByImageInput,
+                        onSelected: (value) => setState(() {
+                          _filterByImageInput = value;
+                        }),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
             Expanded(
@@ -99,7 +124,7 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
     );
   }
 
-  Widget _buildModelList(List<LLModel> models, Set<String> pinnedModelIds) {
+   Widget _buildModelList(List<LLModel> models, Set<String> pinnedModelIds) {
     final filteredPinned = models
         .where((model) =>
             pinnedModelIds.contains(model.id) &&
@@ -109,7 +134,9 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
                     .contains(_searchQuery.toLowerCase()) ||
                 model.description
                     .toLowerCase()
-                    .contains(_searchQuery.toLowerCase())))
+                    .contains(_searchQuery.toLowerCase())) &&
+            (!_filterByReasoning || model.supportsReasoning) &&
+            (!_filterByImageInput || model.supportsImageInput))
         .toList()
       ..sort((a, b) => a.name.compareTo(b.name));
 
@@ -122,7 +149,9 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
                     .contains(_searchQuery.toLowerCase()) ||
                 model.description
                     .toLowerCase()
-                    .contains(_searchQuery.toLowerCase())))
+                    .contains(_searchQuery.toLowerCase())) &&
+            (!_filterByReasoning || model.supportsReasoning) &&
+            (!_filterByImageInput || model.supportsImageInput))
         .toList()
       ..sort((a, b) => a.name.compareTo(b.name));
 
@@ -161,13 +190,12 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
         children: [
           Text(model.provider),
           Text(model.description, maxLines: 2, overflow: TextOverflow.ellipsis),
-          if (model.supportsImageInput || model.supportsImageOutput)
             Row(
               children: [
                 if (model.supportsImageInput) ...[
                   Tooltip(
                     message: 'Supports Image Input',
-                    child: const Icon(Icons.camera_alt, size: 16),
+                    child: const Icon(Icons.add_a_photo, size: 16),
                   ),
                   const SizedBox(width: 4),
                 ],
@@ -178,6 +206,11 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
                   ),
                   const SizedBox(width: 4),
                 ],
+                if (model.supportsReasoning)
+                  Tooltip(
+                    message: 'Supports Reasoning',
+                    child: const Icon(Icons.lightbulb, size: 16),
+                  ),
               ],
             ),
         ],
