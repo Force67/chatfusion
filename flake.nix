@@ -17,7 +17,24 @@
           };
         };
 
-        # Create runtime library path
+        androidComposition = pkgs.androidenv.composeAndroidPackages {
+          toolsVersion = "26.1.1";
+          platformToolsVersion = "34.0.4";
+          buildToolsVersions = [ "34.0.0" ];
+          platformVersions = [ "34" "35" ];
+          includeEmulator = false;
+          includeSources = true;
+          includeSystemImages = false;
+          includeNDK = false;
+          ndkVersion = "25.1.8937393";
+          useGoogleAPIs = false;
+          extraLicenses = [
+            "android-sdk-license"
+            "android-sdk-preview-license"
+            "google-gdk-license"
+          ];
+        };
+
         runtimeLibs = pkgs.lib.makeLibraryPath (with pkgs; [
           zlib
           glib
@@ -34,15 +51,12 @@
           glibc
         ]);
 
-        # Create a complete Clang environment
         clangEnv = pkgs.buildEnv {
           name = "clang-env";
           paths = with pkgs; [
             clang
             lld
-            #compiler-rt
             libcxx
-            #libcxxabi
             libunwind
           ];
         };
@@ -61,16 +75,13 @@
             jdk17
             clangEnv
             binutils
-            patchelf  # Add patchelf for fixing binary paths
+            patchelf
+            androidComposition.androidsdk
+            chromium
+            rsync
           ];
 
           buildInputs = with pkgs; [
-            # Android toolchain
-            androidsdk
-            android-tools
-            android-studio
-
-            # Linux dependencies
             gtk3
             glib
             gdk-pixbuf
@@ -88,47 +99,42 @@
           ];
 
           shellHook = ''
-            # Full isolation from host system
-            unset XDG_DATA_DIRS
-            export PATH="${clangEnv}/bin:${pkgs.binutils}/bin:$PATH"
+            # Set up writable Android SDK
+            export ANDROID_SDK_ROOT="$PWD/android-sdk"
+            mkdir -p "$ANDROID_SDK_ROOT"
+            rsync -a --chmod=+w ${androidComposition.androidsdk}/libexec/android-sdk/ "$ANDROID_SDK_ROOT/"
 
-            # Explicit compiler configuration
+            # Fix command line tools directory structure
+            mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+            ln -sfn "$ANDROID_SDK_ROOT/cmdline-tools/bin" "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" || true
+
+            # Environment variables
+            export ANDROID_HOME="$ANDROID_SDK_ROOT"
+            export CHROME_EXECUTABLE="${pkgs.chromium}/bin/chromium"
+            export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$PATH"
+
+            # Compiler configuration
             export CC="${clangEnv}/bin/clang"
             export CXX="${clangEnv}/bin/clang++"
-            export AR="${pkgs.binutils}/bin/ar"
             export LD="${pkgs.binutils}/bin/ld"
+            export AR="${pkgs.binutils}/bin/ar"
 
             # Library paths
             export LD_LIBRARY_PATH="${runtimeLibs}:$LD_LIBRARY_PATH"
             export LIBRARY_PATH="${runtimeLibs}:$LIBRARY_PATH"
-            export C_INCLUDE_PATH="${pkgs.glibc.dev}/include"
-            export CPLUS_INCLUDE_PATH="${pkgs.glibc.dev}/include"
 
-            # Linker configuration with rpath
+            # Linker flags
             export LDFLAGS="-fuse-ld=lld \
               -Wl,-rpath,${runtimeLibs} \
               -L${pkgs.zlib}/lib \
               -L${pkgs.glibc}/lib \
-              -L${pkgs.gcc-unwrapped}/lib \
               -Wl,--dynamic-linker=${pkgs.glibc}/lib/ld-linux-x86-64.so.2"
 
-            # CMake configuration
-            export CMAKE_PREFIX_PATH="${pkgs.zlib};${pkgs.glibc}"
-
-            # Function to fix runtime paths after build
-            fix_binary_paths() {
-              echo "Fixing runtime paths for executable..."
-              patchelf --set-rpath "${runtimeLibs}" build/linux/x64/debug/bundle/monkeychat
-            }
-
-            # Clean build artifacts
+            # Initial setup
             flutter clean >/dev/null 2>&1
-
-            # Add post-build hook
-            export FLUTTER_POST_BUILD_HOOK="fix_binary_paths"
-
+            echo "Writable Android SDK available at: $ANDROID_SDK_ROOT"
+            echo "Run 'flutter doctor --android-licenses' to accept remaining licenses"
             echo "Development environment ready!"
-            echo "Runtime libraries available at: ${runtimeLibs}"
           '';
         };
       }

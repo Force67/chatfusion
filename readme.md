@@ -1,10 +1,9 @@
 ## Monkeychat
 
-I wanted to have a frontend for chatting with LLMs that doesn't suck and
-has a uniform interface for both mobile and desktop and syncs chat history between devices without the need for a third party server.
-So i made my own. It's a work in progress, but it's getting there.
+An AI chat frontend for power users.
 
-### Features
+As someone who uses AI a lot, i wanted to have a frontend for chatting with LLMs that doesn't suck. For me that includes:
+
 - [x] Privacy first, no data is stored on any servers.
 - [x] Chat with multiple backends
 - [x] Select multiple models
@@ -17,7 +16,7 @@ So i made my own. It's a work in progress, but it's getting there.
 - [ ] Multimodal chat
 - [ ] Whisper integration -> chat directly with voice
 - [ ] Support for ollama
-- [ ] Render reasoning behind the AI's response
+- [ ] Render reasoning behind the AI's response (If supported by the model)
 - [ ] Cost/Limit setting for both tokens and $$ spent
 - [ ] Add more backends
 - [ ] Add local sync, so the chat history is shared between all instances of the app without the use of a server

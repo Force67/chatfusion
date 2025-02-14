@@ -30,6 +30,3 @@ jobs:
         run: |
           cd monkeychat && nix develop --command flutter build linux
 
-      - name: Build for Android
-        run: |
-          cd monkeychat && nix develop --command flutter build apk

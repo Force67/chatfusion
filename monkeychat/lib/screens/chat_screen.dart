@@ -346,6 +346,7 @@ class _ChatScreenState extends State<ChatScreen> {
             children: [
               IconButton(
                 icon: const Icon(Icons.clear_all, color: Colors.blueGrey),
+                tooltip: "Clear context",
                 onPressed: _clearContext,
               ),
               // Add the media selector button here
@@ -412,6 +413,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               IconButton(
                 icon: const Icon(Icons.send, color: Colors.blueGrey),
+                tooltip: "Send message",
                 onPressed: () => _handleSubmitted(_textController.text),
               ),
             ],
