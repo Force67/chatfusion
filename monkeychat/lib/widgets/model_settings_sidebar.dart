@@ -159,6 +159,17 @@ class _ModelSettingsSidebarState extends State<ModelSettingsSidebar> {
           divisions: 20,
           onChanged: updateValue,
         );
+      
+      case 'min_p':
+        return _buildSlider(
+          title: 'Min P',
+          subtitle: 'Probability mass cutoff (0.1 = diverse, 1.0 = broad)',
+          value: (currentValue ?? 0.0).toDouble(),
+          min: 0,
+          max: 1,
+          divisions: 20,
+          onChanged: updateValue,
+        );
 
       case 'include_reasoning':
         return _buildSwitch(

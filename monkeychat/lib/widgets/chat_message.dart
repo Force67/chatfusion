@@ -22,41 +22,49 @@ class ChatMessage extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.symmetric(vertical: 4.0),
         alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
-        child: Container(
-          padding: const EdgeInsets.all(12.0),
-          decoration: BoxDecoration(
-            color: isUser ? Colors.blueGrey : Colors.grey[800],
-            borderRadius: BorderRadius.circular(12.0),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: isStreaming
-                    ? SelectableText(
-                        text,
-                        style: const TextStyle(color: Colors.white),
-                      )
-                    : SelectableRegion(
-                        selectionControls: materialTextSelectionControls,
-                        focusNode: FocusNode(),
-                        child: LaTexT(
-                          laTeXCode: Text(
-                            _convertToLaTeX(text),
-                            style: const TextStyle(color: Colors.white),
+        child: Column(
+          crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          children: [
+            Container(
+              constraints: BoxConstraints(
+                maxWidth: MediaQuery.of(context).size.width * 0.7, // Limit the maximum width
+              ),
+              padding: const EdgeInsets.all(12.0),
+              decoration: BoxDecoration(
+                color: isUser ? Colors.blueGrey : Colors.grey[800],
+                borderRadius: BorderRadius.circular(12.0),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  isStreaming
+                      ? SelectableText(
+                          text,
+                          style: const TextStyle(color: Colors.white),
+                        )
+                      : SelectableRegion(
+                          selectionControls: materialTextSelectionControls,
+                          focusNode: FocusNode(),
+                          child: LaTexT(
+                            laTeXCode: Text(
+                              _convertToLaTeX(text),
+                              style: const TextStyle(color: Colors.white),
+                            ),
                           ),
                         ),
-                      ),
+                  const SizedBox(height: 8), // Add spacing between text and button
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: IconButton(
+                      icon: const Icon(Icons.copy, size: 16, color: Colors.white),
+                      onPressed: () => _copyToClipboard(context),
+                      tooltip: 'Copy whole message', // Tooltip for better UX
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 8), // Add spacing between text and button
-              IconButton(
-                icon: const Icon(Icons.copy, size: 16, color: Colors.white),
-                onPressed: () => _copyToClipboard(context),
-                tooltip: 'Copy whole message', // Tooltip for better UX
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

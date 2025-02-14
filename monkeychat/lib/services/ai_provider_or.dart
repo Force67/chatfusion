@@ -232,6 +232,8 @@ class AIProviderOpenrouter extends AIProvider {
       return;
     }
 
+    print('Params: $params');
+
     final headers = {
       'Authorization': 'Bearer $apiKey',
       'Content-Type': 'application/json',
@@ -272,6 +274,16 @@ class AIProviderOpenrouter extends AIProvider {
       ],
       'stream': true,
     };
+
+    for (final key in params.keys) {
+      // ignore params set to null
+      // these may not have been initialized or set by the user yet
+      if (params[key] == null) {
+        continue;
+      }
+      
+      payload[key] = params[key];
+    }
 
     // Rest of the original stream handling remains the same
     final request = http.Request('POST', url)
