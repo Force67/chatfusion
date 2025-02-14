@@ -56,7 +56,8 @@ class _ChatScreenState extends State<ChatScreen> {
     await DatabaseHelper.instance.insertMessage(userMessageObj);
 
     setState(() {
-      _streamedResponse = ''; // Reset the streamed response
+      _streamedResponse = '';
+      _streamedReasoning = ''; // Reset reasoning too
     });
 
     try {
@@ -93,6 +94,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
       setState(() {
         _streamedResponse = '';
+        _streamedReasoning = '';
       });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -214,10 +216,10 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: ListView.builder(
               reverse: true,
-              padding: const EdgeInsets.all(12.0),
               itemCount:
                   messages.length + (_streamedResponse.isNotEmpty ? 1 : 0),
               itemBuilder: (context, index) {
+                // Streaming message
                 if (_streamedResponse.isNotEmpty && index == 0) {
                   return ChatMessage(
                     text: _streamedResponse,
@@ -226,28 +228,16 @@ class _ChatScreenState extends State<ChatScreen> {
                     reasoning: _streamedReasoning,
                   );
                 }
+
+                // Finalized messages
                 final message = messages.reversed
                     .toList()[_streamedResponse.isNotEmpty ? index - 1 : index];
-                return Column(
-                  children: [
-                    if (_contextCleared && index == messages.length - 1)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8.0),
-                        child: Text(
-                          'Context Cleared',
-                          style: TextStyle(
-                            color: Colors.grey,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ),
-                    ChatMessage(
-                      text: message.text,
-                      reasoning: message.reasoning,
-                      isUser: message.isUser,
-                      isStreaming: false,
-                    ),
-                  ],
+
+                return ChatMessage(
+                  text: message.text,
+                  reasoning: message.reasoning,
+                  isUser: message.isUser,
+                  isStreaming: false,
                 );
               },
             ),

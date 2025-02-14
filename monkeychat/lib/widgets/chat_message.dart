@@ -21,7 +21,14 @@ class ChatMessage extends StatefulWidget {
 }
 
 class _ChatMessageState extends State<ChatMessage> {
-  bool _showReasoning = false;
+  late bool _showReasoning;
+
+  @override
+  void initState() {
+    super.initState();
+    // Show reasoning during streaming, collapse when finalized
+    _showReasoning = widget.isStreaming && widget.reasoning?.isNotEmpty == true;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +39,8 @@ class _ChatMessageState extends State<ChatMessage> {
         margin: const EdgeInsets.symmetric(vertical: 4.0),
         alignment: widget.isUser ? Alignment.centerRight : Alignment.centerLeft,
         child: Column(
-          crossAxisAlignment: widget.isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment:
+              widget.isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             Container(
               constraints: BoxConstraints(
@@ -47,11 +55,14 @@ class _ChatMessageState extends State<ChatMessage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Reasoning toggle and content
-                  if (!widget.isUser && widget.reasoning != null && widget.reasoning!.isNotEmpty)
+                  if (!widget.isUser &&
+                      widget.reasoning != null &&
+                      widget.reasoning!.isNotEmpty)
                     Column(
                       children: [
                         InkWell(
-                          onTap: () => setState(() => _showReasoning = !_showReasoning),
+                          onTap: () =>
+                              setState(() => _showReasoning = !_showReasoning),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
@@ -63,20 +74,22 @@ class _ChatMessageState extends State<ChatMessage> {
                                 ),
                               ),
                               Icon(
-                                _showReasoning ? Icons.expand_less : Icons.expand_more,
+                                _showReasoning
+                                    ? Icons.expand_less
+                                    : Icons.expand_more,
                                 size: 16,
                                 color: Colors.blue[200],
                               ),
                             ],
                           ),
                         ),
-                        if (_showReasoning)
+                        if (_showReasoning || widget.isStreaming)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 8.0),
                             child: LaTexT(
                               laTeXCode: Text(
                                 _convertToLaTeX(widget.reasoning!),
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: Colors.white70,
                                   fontSize: 12,
                                 ),
@@ -106,7 +119,8 @@ class _ChatMessageState extends State<ChatMessage> {
                   Align(
                     alignment: Alignment.centerRight,
                     child: IconButton(
-                      icon: const Icon(Icons.copy, size: 16, color: Colors.white),
+                      icon:
+                          const Icon(Icons.copy, size: 16, color: Colors.white),
                       onPressed: () => _copyToClipboard(context),
                       tooltip: 'Copy whole message',
                     ),
@@ -121,9 +135,11 @@ class _ChatMessageState extends State<ChatMessage> {
   }
 
   void _showCopyMenu(BuildContext context) {
-    final RenderBox overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final RenderBox overlay =
+        Overlay.of(context).context.findRenderObject() as RenderBox;
     final RenderBox textBox = context.findRenderObject() as RenderBox;
-    final Offset position = textBox.localToGlobal(Offset.zero, ancestor: overlay);
+    final Offset position =
+        textBox.localToGlobal(Offset.zero, ancestor: overlay);
 
     showMenu(
       context: context,
