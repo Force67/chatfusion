@@ -11,7 +11,10 @@
       let
         pkgs = import nixpkgs {
           inherit system;
-          config.allowUnfree = true;
+          config = {
+            android_sdk.accept_license = true;
+            allowUnfree = true;
+          };
         };
 
         # Create runtime library path
@@ -62,6 +65,12 @@
           ];
 
           buildInputs = with pkgs; [
+            # Android toolchain
+            androidsdk
+            android-tools
+            android-studio
+
+            # Linux dependencies
             gtk3
             glib
             gdk-pixbuf
