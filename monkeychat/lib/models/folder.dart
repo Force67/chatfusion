@@ -3,6 +3,8 @@ class Folder {
   String name;
   DateTime createdAt;
 
+  //TODO: Default folder for all Chats, Add setting for user to select Folders on chat creation
+
   Folder({this.id, required this.name, required this.createdAt});
 
   Map<String, dynamic> toMap() {
