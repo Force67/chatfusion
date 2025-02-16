@@ -7,6 +7,7 @@ class ChatMessage extends StatefulWidget {
   final bool isUser;
   final bool isStreaming;
   final String? reasoning;
+  final VoidCallback? onRetry;
 
   const ChatMessage({
     super.key,
@@ -14,6 +15,7 @@ class ChatMessage extends StatefulWidget {
     required this.isUser,
     this.isStreaming = false,
     this.reasoning,
+    this.onRetry,
   });
 
   @override
@@ -114,15 +116,25 @@ class _ChatMessageState extends State<ChatMessage> {
                             ),
                           ),
                         ),
-                  const SizedBox(height: 8),
-                  // Copy button
+                  const SizedBox(height: 2),
+                  // Copy and retry buttons
                   Align(
                     alignment: Alignment.centerRight,
-                    child: IconButton(
-                      icon:
-                          const Icon(Icons.copy, size: 16, color: Colors.white),
-                      onPressed: () => _copyToClipboard(context),
-                      tooltip: 'Copy whole message',
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (!widget.isUser && widget.onRetry != null)
+                          IconButton(
+                            icon: const Icon(Icons.refresh, size: 10, color: Colors.white),
+                            onPressed: widget.onRetry,
+                            tooltip: 'Retry',
+                          ),
+                        IconButton(
+                          icon: const Icon(Icons.copy, size: 10, color: Colors.white),
+                          onPressed: () => _copyToClipboard(context),
+                          tooltip: 'Copy whole message',
+                        ),
+                      ],
                     ),
                   ),
                 ],

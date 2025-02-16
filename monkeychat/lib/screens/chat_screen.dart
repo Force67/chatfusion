@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'package:monkeychat/services/ai_provider.dart';
 import '../database/local_db.dart';
 import '../models/chat.dart';
@@ -34,6 +35,8 @@ class _ChatScreenState extends State<ChatScreen> {
   String? _selectedImagePath;
 
   bool _isResponding = false;
+  bool _isStreaming = false;
+  StreamSubscription? _responseStreamSubscription;
 
   bool _isSettingsSidebarOpen = false;
   Map<String, dynamic> _modelSettings = {};
@@ -61,6 +64,7 @@ class _ChatScreenState extends State<ChatScreen> {
       _streamedResponse = '';
       _streamedReasoning = '';
       _isResponding = true;
+      _isStreaming = true;
     });
 
     try {
@@ -74,7 +78,7 @@ class _ChatScreenState extends State<ChatScreen> {
           _selectedModel!.id, contextMessages.join('\n'), _modelSettings,
           imagePath: _selectedImagePath);
 
-      await for (final chunk in stream) {
+      _responseStreamSubscription = stream.listen((chunk) {
         setState(() {
           if (chunk.type == TokenEventType.response) {
             _streamedResponse += chunk.text;
@@ -82,29 +86,42 @@ class _ChatScreenState extends State<ChatScreen> {
             _streamedReasoning += chunk.text;
           }
         });
-      }
-
-      final aiMessage = Message(
-        id: 0,
-        chatId: _currentChatId,
-        text: _streamedResponse,
-        reasoning: _streamedReasoning,
-        isUser: false,
-        createdAt: DateTime.now(),
-      );
-
-      await DatabaseHelper.instance.insertMessage(aiMessage);
+      }, onDone: () async {
+        final aiMessage = Message(
+          id: 0,
+          chatId: _currentChatId,
+          text: _streamedResponse,
+          reasoning: _streamedReasoning,
+          isUser: false,
+          createdAt: DateTime.now(),
+        );
+        await DatabaseHelper.instance.insertMessage(aiMessage);
+        setState(() {
+          _isResponding = false;
+          _isStreaming = false;
+        });
+      }, onError: (e) {
+        setState(() {
+          _isResponding = false;
+          _isStreaming = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      });
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: $e')),
       );
-    } finally {
-      setState(() {
-        _streamedResponse = '';
-        _streamedReasoning = '';
-        _isResponding = false;
-      });
     }
+  }
+
+  void _stopGenerating() {
+    _responseStreamSubscription?.cancel();
+    setState(() {
+      _isResponding = false;
+      _isStreaming = false;
+    });
   }
 
   static dynamic _findDefaultValueForParam(String name) {
@@ -177,6 +194,25 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
+  Future<void> _retryMessage(Message message) async {
+    print('Retrying message: ${message.text}');
+    // Find the previous user message
+    final messages = await DatabaseHelper.instance.getMessages(_currentChatId);
+    final userMsg = messages.firstWhere(
+      (m) => m.id < message.id && m.isUser,
+      orElse: () => Message(
+        id: 0,
+        chatId: _currentChatId,
+        text: '',
+        reasoning: '',
+        isUser: true,
+        createdAt: DateTime.now(),
+      ),
+    );
+    print('Found user message: ${userMsg.text}');
+    await _sendToProvider(userMsg.text);
+  }
+
   Future<void> _showModelSelection() async {
     showDialog(
       context: context,
@@ -221,10 +257,12 @@ class _ChatScreenState extends State<ChatScreen> {
           Expanded(
             child: ListView.builder(
               reverse: true,
-              itemCount: messages.length + (_isResponding ? 1 : 0), // Modified line
+              itemCount:
+                  messages.length + (_isResponding ? 1 : 0), // Modified line
               itemBuilder: (context, index) {
                 // Streaming message
-                if (_isResponding && index == 0) { // Modified condition
+                if (_isResponding && index == 0) {
+                  // Modified condition
                   return ChatMessage(
                     text: _streamedResponse,
                     isUser: false,
@@ -242,6 +280,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   reasoning: message.reasoning,
                   isUser: message.isUser,
                   isStreaming: false,
+                  onRetry: () => _retryMessage(message),
                 );
               },
             ),
@@ -416,9 +455,14 @@ class _ChatScreenState extends State<ChatScreen> {
                 ),
               ),
               IconButton(
-                icon: const Icon(Icons.send, color: Colors.blueGrey),
-                tooltip: "Send message",
-                onPressed: () => _handleSubmitted(_textController.text),
+                icon: Icon(
+                  _isStreaming ? Icons.stop : Icons.send,
+                  color: _isStreaming ? Colors.red : Colors.blueGrey,
+                ),
+                tooltip: _isStreaming ? "Stop generating" : "Send message",
+                onPressed: _isStreaming
+                    ? _stopGenerating
+                    : () => _handleSubmitted(_textController.text),
               ),
             ],
           ),
