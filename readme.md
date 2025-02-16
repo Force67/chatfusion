@@ -19,6 +19,7 @@ As someone who uses AI a lot, i wanted to have a frontend for chatting with LLMs
 - [ ] Cost/Limit setting for both tokens and $$ spent
 - [ ] Add more backends, such as ollama
 - [ ] Add local sync, so the chat history is shared between all instances of the app without the use of a server
+- [ ] Chat-sharing feature 
 
 ## Usage
 I recommend using openrouter. Simply request your api key and set in the app settings. Then you should be able to view the model list and begin chatting.
