@@ -41,7 +41,12 @@ class _ChatScreenState extends State<ChatScreen> {
   bool _isSettingsSidebarOpen = false;
   Map<String, dynamic> _modelSettings = {};
 
-  Future<void> _sendToProvider(String userMessage, {String? imagePath}) async {
+  Future<void> _sendToProvider(
+    Message userMessage, {
+    bool insertUserMessage = true,
+    List<String>? contextMessages,
+    String? imagePath,
+  }) async {
     if (_selectedModel == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select a model first')),
@@ -49,16 +54,9 @@ class _ChatScreenState extends State<ChatScreen> {
       return;
     }
 
-    final userMessageObj = Message(
-      id: 0,
-      chatId: _currentChatId,
-      text: userMessage,
-      reasoning: "",
-      isUser: true,
-      createdAt: DateTime.now(),
-    );
-
-    await DatabaseHelper.instance.insertMessage(userMessageObj);
+    if (insertUserMessage) {
+      await DatabaseHelper.instance.insertMessage(userMessage);
+    }
 
     setState(() {
       _streamedResponse = '';
@@ -68,15 +66,24 @@ class _ChatScreenState extends State<ChatScreen> {
     });
 
     try {
-      final messages =
-          await DatabaseHelper.instance.getMessages(_currentChatId);
-      final contextMessages =
-          _contextCleared ? [userMessage] : messages.map((m) => m.text).toList()
-            ..add(userMessage);
+      // Use provided context or fetch fresh messages
+      final List<String> finalContext = contextMessages ??
+        (await DatabaseHelper.instance.getMessages(_currentChatId))
+          .where((m) => m.id <= userMessage.id) // Only messages up to target user message
+          .map((m) => m.text)
+          .toList();
+
+      // If context was cleared, only use the latest user message
+      final processedContext = _contextCleared
+          ? [userMessage.text]
+          : finalContext;
 
       final stream = _provider.streamResponse(
-          _selectedModel!.id, contextMessages.join('\n'), _modelSettings,
-          imagePath: _selectedImagePath);
+        _selectedModel!.id,
+        processedContext.join('\n'),
+        _modelSettings,
+        imagePath: imagePath,
+      );
 
       _responseStreamSubscription = stream.listen((chunk) {
         setState(() {
@@ -95,6 +102,7 @@ class _ChatScreenState extends State<ChatScreen> {
           isUser: false,
           createdAt: DateTime.now(),
         );
+
         await DatabaseHelper.instance.insertMessage(aiMessage);
         setState(() {
           _isResponding = false;
@@ -188,29 +196,62 @@ class _ChatScreenState extends State<ChatScreen> {
   void _handleSubmitted(String text) async {
     if (text.trim().isEmpty && _selectedImagePath == null) return;
     _textController.clear();
-    await _sendToProvider(text, imagePath: _selectedImagePath);
-    setState(() {
-      _selectedImagePath = null; // Reset after sending
-    });
+
+    // Create temporary message with placeholder ID
+    final userMessage = Message(
+      id: -1, // Temporary invalid ID
+      chatId: _currentChatId,
+      text: text,
+      reasoning: "",
+      isUser: true,
+      createdAt: DateTime.now(),
+    );
+
+    try {
+      // Insert message and get actual database ID
+      final insertedId = await DatabaseHelper.instance.insertMessage(userMessage);
+      final validMessage = userMessage.copyWith(id: insertedId);
+
+      await _sendToProvider(
+        validMessage,
+        imagePath: _selectedImagePath,
+        insertUserMessage: false, // Already inserted
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to send message: $e')),
+      );
+    } finally {
+      setState(() => _selectedImagePath = null);
+    }
   }
 
-  Future<void> _retryMessage(Message message) async {
-    print('Retrying message: ${message.text}');
-    // Find the previous user message
+
+  Future<void> _retryMessage(Message messageToRetry) async {
     final messages = await DatabaseHelper.instance.getMessages(_currentChatId);
-    final userMsg = messages.firstWhere(
-      (m) => m.id < message.id && m.isUser,
-      orElse: () => Message(
-        id: 0,
-        chatId: _currentChatId,
-        text: '',
-        reasoning: '',
-        isUser: true,
-        createdAt: DateTime.now(),
-      ),
+
+    // Find the user message that triggered this AI response
+    final userMessageIndex = messages.indexWhere(
+      (m) => m.id == messageToRetry.id - 1 && m.isUser
     );
-    print('Found user message: ${userMsg.text}');
-    await _sendToProvider(userMsg.text);
+
+    if (userMessageIndex == -1) return;
+
+    // Delete ONLY the target AI message
+    await DatabaseHelper.instance.deleteMessage(messageToRetry.id);
+
+    // Get messages up to (and including) the original user message
+    final contextMessages = messages
+      .sublist(0, userMessageIndex + 1)
+      .map((m) => m.text)
+      .toList();
+
+    // Regenerate with original context
+    await _sendToProvider(
+      messages[userMessageIndex],
+      insertUserMessage: false,
+      contextMessages: contextMessages,
+    );
   }
 
   Future<void> _showModelSelection() async {
