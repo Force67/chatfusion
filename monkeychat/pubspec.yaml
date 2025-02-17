@@ -35,6 +35,8 @@ dependencies:
   file_picker:
   mime:
   async:
+  flutter_bloc:
+  equatable:
 
 dev_dependencies:
   flutter_test:
