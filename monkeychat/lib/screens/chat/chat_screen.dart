@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+
+import 'package:monkeychat/screens/settings/settings_screen.dart';
+import 'package:monkeychat/screens/settings/settings_cubit.dart';
+
 import 'package:monkeychat/services/ai_provider.dart';
 import 'package:monkeychat/database/local_db.dart';
 import 'package:monkeychat/models/chat.dart';
@@ -7,7 +11,6 @@ import 'package:monkeychat/models/message.dart';
 import 'package:monkeychat/widgets/chat_message.dart';
 import 'package:monkeychat/services/settings_service.dart';
 import 'package:monkeychat/services/ai_provider_or.dart';
-import '../settings_screen.dart';
 import 'package:monkeychat/models/llm.dart';
 import 'package:monkeychat/widgets/model_selection_dialog.dart';
 import 'package:monkeychat/widgets/chat_list_sidebar.dart';
@@ -132,8 +135,12 @@ class _ChatScreenState extends State<ChatScreen> {
                   icon: const Icon(Icons.settings),
                   onPressed: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const SettingsScreen()),
+                    MaterialPageRoute(builder: (context) => BlocProvider(
+                      create: (context) => SettingsCubit(),
+                     child: SettingsScreen(),
+                    ),
                   ),
+                ),
                 ),
               ],
             ),
