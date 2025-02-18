@@ -54,8 +54,9 @@ class ChatCubit extends Cubit<ChatState> {
     );
 
     try {
+      final msgs = await LocalDb.instance.messages;
       // Insert message and get actual database ID
-      final insertedId = await LocalDb.instance.insertMessage(userMessage);
+      final insertedId = await msgs.insertMessage(userMessage);
       final validMessage = userMessage.copyWith(id: insertedId);
 
       await _sendToProvider(
@@ -80,7 +81,8 @@ class ChatCubit extends Cubit<ChatState> {
   }
 
   Future<void> retryMessage(Message messageToRetry) async {
-    final messages = await LocalDb.instance.getMessages(state.currentChatId);
+    final msgs = await LocalDb.instance.messages;
+    final messages = await msgs.getMessages(state.currentChatId);
 
     // Find the user message that triggered this AI response
     final userMessageIndex =
@@ -89,7 +91,7 @@ class ChatCubit extends Cubit<ChatState> {
     if (userMessageIndex == -1) return;
 
     // Delete ONLY the target AI message
-    await LocalDb.instance.deleteMessage(messageToRetry.id);
+    await msgs.deleteMessage(messageToRetry.id);
 
     // Get messages up to (and including) the original user message
     final contextMessages =
@@ -176,7 +178,8 @@ class ChatCubit extends Cubit<ChatState> {
       emit(state.copyWith(errorMessage: 'Please select a model first'));
       return;
     }
-
+    // create a chat instance
+    final msgs = await LocalDb.instance.messages;
     emit(state.copyWith(
         isResponding: true,
         isStreaming: true,
@@ -185,12 +188,12 @@ class ChatCubit extends Cubit<ChatState> {
 
     try {
       if (insertUserMessage) {
-        await LocalDb.instance.insertMessage(userMessage);
+        await msgs.insertMessage(userMessage);
       }
 
       // Use provided context or fetch fresh messages. Note ! state is immutable.
       final List<String> finalContext = contextMessages ??
-          (await LocalDb.instance.getMessages(state.currentChatId))
+          (await msgs.getMessages(state.currentChatId))
               .where((m) =>
                   m.id <=
                   userMessage.id) // Only messages up to target user message
@@ -227,7 +230,7 @@ class ChatCubit extends Cubit<ChatState> {
           createdAt: DateTime.now(),
         );
 
-        await LocalDb.instance.insertMessage(aiMessage);
+        await msgs.insertMessage(aiMessage);
         emit(state.copyWith(isResponding: false, isStreaming: false));
       }, onError: (e) {
         emit(state.copyWith(

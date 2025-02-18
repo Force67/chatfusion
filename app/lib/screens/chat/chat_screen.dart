@@ -5,6 +5,8 @@ import 'package:monkeychat/screens/settings/settings_screen.dart';
 import 'package:monkeychat/screens/settings/settings_cubit.dart';
 
 import 'package:monkeychat/database/local_db.dart';
+import 'package:monkeychat/database/message_collection.dart';
+
 import 'package:monkeychat/models/message.dart';
 import 'package:monkeychat/widgets/chat_message.dart';
 import 'package:monkeychat/services/settings_service.dart';
@@ -54,7 +56,8 @@ class _ChatScreenState extends State<ChatScreen> {
     return FutureBuilder<List<Message>>(
       future: state.isNewChat
           ? Future.value([])
-          : LocalDb.instance.getMessages(state.currentChatId),
+          : LocalDb.instance.messages.then((messagesCollection) =>
+              messagesCollection.getMessages(state.currentChatId)),
       builder: (context, snapshot) {
         final messages = snapshot.data ?? [];
 

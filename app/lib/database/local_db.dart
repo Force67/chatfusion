@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:monkeychat/database/folder_collection.dart';
+import 'package:monkeychat/database/message_collection.dart';
 import 'package:monkeychat/models/folder.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
@@ -18,6 +19,7 @@ class LocalDb {
   Database? _cachedDb;
   ChatCollection? _chatCollection;
   FolderCollection? _folderCollection;
+  MessageCollection? _messageCollection;
 
   LocalDb._private();
 
@@ -38,6 +40,12 @@ class LocalDb {
     final db = _cachedDb ?? await database;
     _folderCollection ??= FolderCollection(db);
     return _folderCollection!;
+  }
+
+  Future<MessageCollection> get messages async {
+    final db = _cachedDb ?? await database;
+    _messageCollection ??= MessageCollection(db);
+    return _messageCollection!;
   }
 
   Future<Database> _initDatabase() async {
@@ -168,38 +176,6 @@ class LocalDb {
       await txn
           .delete('folders_to_chats'); // Crucial: remove folder relationships
     });
-  }
-
-  // Rest of the methods remain similar with added type safety...
-  Future<int> insertMessage(Message message) async {
-    final db = await instance.database;
-    return db.insert('messages', {
-      'chat_id': message.chatId,
-      'text': message.text,
-      'reasoning': message.reasoning,
-      'is_user': message.isUser ? 1 : 0,
-      'created_at': message.createdAt.toIso8601String(),
-    });
-  }
-
-  Future<void> deleteMessage(int messageId) async {
-    final db = await instance.database;
-    await db.delete(
-      'messages',
-      where: 'id = ?',
-      whereArgs: [messageId],
-    );
-  }
-
-  Future<List<Message>> getMessages(int chatId) async {
-    final db = await instance.database;
-    final maps = await db.query(
-      'messages',
-      where: 'chat_id = ?',
-      whereArgs: [chatId],
-      orderBy: 'created_at',
-    );
-    return maps.map((map) => Message.fromMap(map)).toList();
   }
 
   // Improved model caching with transaction
