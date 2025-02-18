@@ -23,3 +23,7 @@ As someone who uses AI a lot, i wanted to have a frontend for chatting with LLMs
 
 ## Usage
 I recommend using openrouter. Simply request your api key and set in the app settings. Then you should be able to view the model list and begin chatting.
+
+### Linux
+
+On linux, you need zenity installed in order to render the file picker. You can install it with `sudo apt install zenity`.

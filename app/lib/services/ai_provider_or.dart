@@ -245,10 +245,13 @@ class AIProviderOpenrouter extends AIProvider {
     return model[0].iconUrl;
   }
 
+  // modelID is the model to use
+  // question is the user input
+  // params are the parameters to pass to the model (e.g. temperature: 0.6)
+  // attachmentPaths are the paths to any attachments. they can be images, or pdfs for example
   @override
-  Stream<TokenEvent> streamResponse(
-      String modelId, String question, Map<String, dynamic> params,
-      {String? imagePath}) async* {
+  Stream<TokenEvent> streamResponse(String modelId, String question,
+      Map<String, dynamic> params, List<String>? attachmentPaths) async* {
     final url = Uri.parse('$_apiUrl/chat/completions');
     final apiKey = await _settingsService.getApiKey();
     if (apiKey == null) {
@@ -264,31 +267,40 @@ class AIProviderOpenrouter extends AIProvider {
     };
 
     // Prepare message content
-    dynamic messageContent;
-    if (imagePath != null) {
-      final file = File(imagePath);
-      final bytes = await file.readAsBytes();
-      final mimeType = lookupMimeType(imagePath) ?? 'image/jpeg';
+    List<Map<String, dynamic>> messageContent = []; // Changed to dynamic
 
-      if (!mimeType.startsWith('image/')) {
-        throw Exception('Unsupported file type: $mimeType');
+    if (attachmentPaths != null && attachmentPaths.isNotEmpty) {
+      // Add the text prompt is available
+      if (question.isNotEmpty) {
+        messageContent.add({'type': 'text', 'text': question});
       }
+      // read attachments
+      for (String attachmentPath in attachmentPaths) {
+        final file = File(attachmentPath);
+        final bytes = await file.readAsBytes();
+        final mimeType = lookupMimeType(attachmentPath) ?? 'image/jpeg';
 
-      final base64Image = base64Encode(bytes);
-      final dataUri = 'data:$mimeType;base64,$base64Image';
+        if (!mimeType.startsWith('image/')) {
+          //TODO: Add support for PDFs and other doc types
+          print('Unsupported file type: $mimeType');
+          continue;
+        }
 
-      messageContent = [
-        {'type': 'text', 'text': question},
-        {
+        final base64Image = base64Encode(bytes);
+        final dataUri = 'data:$mimeType;base64,$base64Image';
+
+        messageContent.add({
           'type': 'image_url',
           'image_url': {
             'url': dataUri,
             'detail': 'auto' // You can modify this based on needs
           }
-        }
-      ];
+        });
+      }
     } else {
-      messageContent = question;
+      messageContent = [
+        {'type': 'text', 'text': question}
+      ]; // Only text
     }
 
     final payload = {
@@ -349,7 +361,6 @@ class AIProviderOpenrouter extends AIProvider {
                 }
               }
 
-              // Handle reasoning tokens if enabled
               if (includeReasoning && delta.containsKey('reasoning')) {
                 final reasoning = delta['reasoning'];
                 if (reasoning != null) {

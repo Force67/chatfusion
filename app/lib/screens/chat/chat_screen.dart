@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
+import 'dart:io'; // Import for File
 
 import 'package:monkeychat/screens/settings/settings_screen.dart';
 import 'package:monkeychat/screens/settings/settings_cubit.dart';
@@ -223,6 +224,7 @@ class _Input extends StatelessWidget {
   }) : _textController = textController;
 
   final TextEditingController _textController;
+  final int maxAttachments = 4; // Defining the maximum number of files.
 
   @override
   Widget build(BuildContext context) {
@@ -233,27 +235,55 @@ class _Input extends StatelessWidget {
           color: Colors.grey[850],
           child: Column(
             children: [
-              if (state.selectedImagePath != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 8.0),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.image, color: Colors.blueGrey, size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Attached: ${state.selectedImagePath!.split('/').last}',
-                          style: const TextStyle(color: Colors.white70),
-                          overflow: TextOverflow.ellipsis,
+              if (state.selectedAttachmentPaths.isNotEmpty)
+                SizedBox(
+                  height: 60, // Adjust as needed
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: state.selectedAttachmentPaths.length,
+                    itemBuilder: (context, index) {
+                      final imagePath = state.selectedAttachmentPaths[index];
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 8.0),
+                        child: Stack(
+                          children: [
+                            // Conditionally render an image preview
+                            if (imagePath.isNotEmpty &&
+                                [
+                                  'jpg',
+                                  'jpeg',
+                                  'png',
+                                  'gif',
+                                  'bmp'
+                                ].any((ext) =>
+                                    imagePath.toLowerCase().endsWith('.$ext')))
+                              Image.file(
+                                File(imagePath),
+                                width: 50, // Adjust size
+                                height: 50,
+                                fit: BoxFit.cover,
+                              )
+                            else
+                              const Icon(
+                                  Icons.insert_drive_file, // Generic file icon
+                                  color: Colors.blueGrey,
+                                  size: 50),
+                            Positioned(
+                              top: 0,
+                              right: 0,
+                              child: InkWell(
+                                onTap: () {
+                                  context.read<ChatCubit>().removeAttachment(
+                                      imagePath); // Call function to remove the path
+                                },
+                                child: const Icon(Icons.cancel,
+                                    color: Colors.red, size: 16),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.close,
-                            size: 18, color: Colors.blueGrey),
-                        onPressed: () =>
-                            context.read<ChatCubit>().sendMessage("", null),
-                      ),
-                    ],
+                      );
+                    },
                   ),
                 ),
               Row(
@@ -276,19 +306,30 @@ class _Input extends StatelessWidget {
                         return;
                       }
 
+                      if (state.selectedAttachmentPaths.length >=
+                          maxAttachments) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                              content: Text(
+                                  'You can only attach a maximum of $maxAttachments files.')),
+                        );
+                        return;
+                      }
+
                       final FileType fileType =
                           state.selectedModel!.supportsImageInput
                               ? FileType.image
-                              : FileType.custom;
+                              : FileType.any; // Allow any file type
 
                       final List<String>? allowedExtensions =
                           state.selectedModel!.supportsImageInput
                               ? null
-                              : ['txt', 'text'];
+                              : null; //Allow any extension
 
-                      context
-                          .read<ChatCubit>()
-                          .attachFile(fileType, allowedExtensions);
+                      context.read<ChatCubit>().attachFiles(
+                          fileType, allowedExtensions,
+                          maxAttachments:
+                              maxAttachments); // Changed to attachFiles
                     },
                   ),
                   Expanded(
@@ -306,7 +347,8 @@ class _Input extends StatelessWidget {
                       ),
                       onSubmitted: (text) => context
                           .read<ChatCubit>()
-                          .sendMessage(text, state.selectedImagePath),
+                          .sendMessage(text,
+                              state.selectedAttachmentPaths), //send the list
                     ),
                   ),
                   IconButton(
@@ -319,7 +361,8 @@ class _Input extends StatelessWidget {
                     onPressed: state.isStreaming
                         ? () => context.read<ChatCubit>().stopGenerating()
                         : () => context.read<ChatCubit>().sendMessage(
-                            _textController.text, state.selectedImagePath),
+                            _textController.text,
+                            state.selectedAttachmentPaths), //send the list
                   ),
                 ],
               ),

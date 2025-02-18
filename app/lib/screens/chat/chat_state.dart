@@ -10,7 +10,7 @@ class ChatState {
   final String streamedResponse;
   final String streamedReasoning;
   final bool contextCleared;
-  final String? selectedImagePath;
+  final List<String> selectedAttachmentPaths;
   final bool isResponding;
   final bool isStreaming;
   final StreamSubscription? responseStreamSubscription;
@@ -18,33 +18,33 @@ class ChatState {
   final bool chatsDeleted;
 
   ChatState({
-    required this.currentChatId,
-    required this.isNewChat,
+    this.currentChatId = -1,
+    this.isNewChat = false,
     required this.selectedModel,
     required this.modelSettings,
-    required this.streamedResponse,
-    required this.streamedReasoning,
-    required this.contextCleared,
-    required this.selectedImagePath,
-    required this.isResponding,
-    required this.isStreaming,
+    this.streamedResponse = "",
+    this.streamedReasoning = "",
+    this.contextCleared = false,
+    this.selectedAttachmentPaths = const [],
+    this.isResponding = false,
+    this.isStreaming = false,
     this.responseStreamSubscription,
     this.errorMessage,
     this.chatsDeleted = false,
   });
 
   factory ChatState.initial() => ChatState(
-    currentChatId: 0,
-    isNewChat: true,
-    selectedModel: null,
-    modelSettings: {},
-    streamedResponse: '',
-    streamedReasoning: '',
-    contextCleared: false,
-    selectedImagePath: null,
-    isResponding: false,
-    isStreaming: false,
-  );
+        currentChatId: 0,
+        isNewChat: true,
+        selectedModel: null,
+        modelSettings: {},
+        streamedResponse: '',
+        streamedReasoning: '',
+        contextCleared: false,
+        selectedAttachmentPaths: [],
+        isResponding: false,
+        isStreaming: false,
+      );
 
   ChatState copyWith({
     int? currentChatId,
@@ -54,7 +54,7 @@ class ChatState {
     String? streamedResponse,
     String? streamedReasoning,
     bool? contextCleared,
-    String? selectedImagePath,
+    List<String>? selectedAttachmentPaths,
     bool? isResponding,
     bool? isStreaming,
     StreamSubscription? responseStreamSubscription,
@@ -69,10 +69,12 @@ class ChatState {
       streamedResponse: streamedResponse ?? this.streamedResponse,
       streamedReasoning: streamedReasoning ?? this.streamedReasoning,
       contextCleared: contextCleared ?? this.contextCleared,
-      selectedImagePath: selectedImagePath ?? this.selectedImagePath,
+      selectedAttachmentPaths:
+          selectedAttachmentPaths ?? this.selectedAttachmentPaths,
       isResponding: isResponding ?? this.isResponding,
       isStreaming: isStreaming ?? this.isStreaming,
-      responseStreamSubscription: responseStreamSubscription ?? this.responseStreamSubscription,
+      responseStreamSubscription:
+          responseStreamSubscription ?? this.responseStreamSubscription,
       errorMessage: errorMessage,
       chatsDeleted: chatsDeleted ?? this.chatsDeleted,
     );

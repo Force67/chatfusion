@@ -18,9 +18,8 @@ abstract class AIProvider {
 
   // Streams the response from the AI provider, the modelId is the model to use
   // e.g. openai/gpt-4o
-  Stream<TokenEvent> streamResponse(
-      String modelId, String question, Map<String, dynamic> params,
-      {String? imagePath});
+  Stream<TokenEvent> streamResponse(String modelId, String question,
+      Map<String, dynamic> params, List<String>? attachmentPaths);
 
   Future<String> fetchImageURL(String modelId);
 }

@@ -16,14 +16,19 @@ import "package:monkeychat/services/ai_provider_or.dart";
 
 extension StringExtension on String {
   String capitalize() {
-    return "${this[0].toUpperCase()}${this.substring(1)}";
+    return "${this[0].toUpperCase()}${substring(1)}";
   }
 }
 
 class ChatCubit extends Cubit<ChatState> {
   final AIProvider provider = AIProviderOpenrouter();
 
-  ChatCubit() : super(ChatState.initial());
+  ChatCubit()
+      : super(ChatState(
+          selectedAttachmentPaths: [],
+          selectedModel: null,
+          modelSettings: {},
+        )); // Initialize with empty list
 
   Future<void> initChat(int chatId, LLModel selectedModel,
       Map<String, dynamic> modelSettings) async {
@@ -32,6 +37,7 @@ class ChatCubit extends Cubit<ChatState> {
       isNewChat: false,
       selectedModel: selectedModel,
       modelSettings: modelSettings,
+      selectedAttachmentPaths: [],
     ));
   }
 
@@ -112,16 +118,8 @@ class ChatCubit extends Cubit<ChatState> {
     emit(state.copyWith(modelSettings: newParams));
   }
 
-  void _emitNewState() {
-    emit(state.copyWith());
-  }
-
   Future<void> _addSystemMessage(String messageText) async {
     final chatId = state.currentChatId;
-    if (chatId == null) {
-      print("cannot create message without a chatid");
-      return;
-    }
 
     final message = Message(
         id: DateTime.now().millisecondsSinceEpoch,
@@ -138,12 +136,12 @@ class ChatCubit extends Cubit<ChatState> {
     emit(state.copyWith()); // trigger rebuild so the ui picks up the change
   }
 
-  Future<void> sendMessage(String text, String? imagePath) async {
-    if (state.selectedModel == null && imagePath == null) {
+  Future<void> sendMessage(String text, List<String> attachmentPaths) async {
+    if (state.selectedModel == null) {
       emit(state.copyWith(errorMessage: 'Please select a model first'));
       return;
     }
-    if (text.trim().isEmpty && imagePath == null) return;
+    if (text.trim().isEmpty) return;
 
     // Create temporary message with placeholder ID
     final userMessage = Message(
@@ -163,14 +161,20 @@ class ChatCubit extends Cubit<ChatState> {
 
       await _sendToProvider(
         validMessage,
-        imagePath: imagePath,
+        attachmentPaths: attachmentPaths,
         insertUserMessage: false, // Already inserted
       );
     } catch (e) {
       emit(state.copyWith(errorMessage: 'Failed to send message: $e'));
     } finally {
-      emit(state.copyWith(selectedImagePath: null));
+      emit(state.copyWith(selectedAttachmentPaths: []));
     }
+  }
+
+  Future<void> removeAttachment(String pathToRemove) async {
+    final updatedPaths = List<String>.from(state.selectedAttachmentPaths);
+    updatedPaths.remove(pathToRemove);
+    emit(state.copyWith(selectedAttachmentPaths: updatedPaths));
   }
 
   void stopGenerating() {
@@ -241,27 +245,38 @@ class ChatCubit extends Cubit<ChatState> {
     }
   }
 
-  Future<void> attachFile(
-      FileType fileType, List<String>? allowedExtensions) async {
+  Future<void> attachFiles(FileType fileType, List<String>? allowedExtensions,
+      {int maxAttachments = 4}) async {
     try {
-      final FilePickerResult? result = await FilePicker.platform.pickFiles(
+      final result = await FilePicker.platform.pickFiles(
         type: fileType,
+        allowMultiple: true, // Allow multiple file selections
         allowedExtensions: allowedExtensions,
       );
 
       if (result != null && result.files.isNotEmpty) {
-        final PlatformFile file = result.files.first;
-        if (state.selectedModel!.supportsImageInput) {
-          emit(state.copyWith(selectedImagePath: file.path));
-        } else {
-          // Handle text file selection logic if needed
-          // For example:
-          // String fileContent = await File(file.path!).readAsString();
-          // emit(state.copyWith(textFromFile: fileContent));
+        List<String> paths =
+            result.files.map((file) => file.path!).toList(); // Extract paths
+        // Enforce max attachments limit
+        if (state.selectedAttachmentPaths.length + paths.length >
+            maxAttachments) {
+          paths = paths.sublist(
+              0,
+              maxAttachments -
+                  state.selectedAttachmentPaths
+                      .length); //take how many we can from new list
         }
+
+        final List<String> allPaths = List.from(state.selectedAttachmentPaths)
+          ..addAll(paths);
+
+        emit(state.copyWith(
+            selectedAttachmentPaths: allPaths)); // Update state with the paths
+      } else {
+        // User canceled the picker
       }
     } catch (e) {
-      emit(state.copyWith(errorMessage: 'Error selecting file: $e'));
+      emit(state.copyWith(errorMessage: 'Error picking file: $e'));
     }
   }
 
@@ -274,7 +289,7 @@ class ChatCubit extends Cubit<ChatState> {
     Message userMessage, {
     bool insertUserMessage = true,
     List<String>? contextMessages,
-    String? imagePath,
+    List<String>? attachmentPaths,
   }) async {
     if (state.selectedModel == null) {
       emit(state.copyWith(errorMessage: 'Please select a model first'));
@@ -310,7 +325,7 @@ class ChatCubit extends Cubit<ChatState> {
         state.selectedModel!.id,
         processedContext.join('\n'),
         state.modelSettings,
-        imagePath: imagePath,
+        attachmentPaths,
       );
 
       StreamSubscription<TokenEvent> responseStreamSubscription =
