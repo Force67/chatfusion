@@ -1,9 +1,7 @@
 import 'package:bloc/bloc.dart';
-import 'package:equatable/equatable.dart';
 import 'package:monkeychat/services/settings_service.dart';
 import 'package:monkeychat/screens/settings/settings_state.dart';
 import 'package:monkeychat/database/local_db.dart';
-
 
 class SettingsCubit extends Cubit<SettingsState> {
   SettingsCubit() : super(const SettingsState());
@@ -64,7 +62,8 @@ class SettingsCubit extends Cubit<SettingsState> {
         siteUrl: '',
         siteName: '',
       );
-      emit(state.copyWith(apiKey: '', siteUrl: '', siteName: '', isLoading: false));
+      emit(state.copyWith(
+          apiKey: '', siteUrl: '', siteName: '', isLoading: false));
     } catch (e) {
       emit(state.copyWith(
         isLoading: false,
@@ -76,8 +75,10 @@ class SettingsCubit extends Cubit<SettingsState> {
   Future<void> clearChatDatabase() async {
     emit(state.copyWith(isLoading: true));
     try {
-      await DatabaseHelper.instance.clearAll();
-      await DatabaseHelper.instance.getChats(); // Refreshing chats after clearing
+      await LocalDb.instance.clearAll();
+
+      final chats = await LocalDb.instance.chats;
+      await chats.getChats(); // Refreshing chats after clearing
       emit(state.copyWith(isLoading: false));
       //Potentially emit a new state that the chat database has been cleared for UI updates in other parts of your app if needed.
     } catch (e) {

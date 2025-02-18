@@ -18,7 +18,7 @@ class ORModelCapabilities {
 }
 
 class AIProviderOpenrouter extends AIProvider {
-  final DatabaseHelper _dbHelper = DatabaseHelper.instance;
+  final LocalDb _dbHelper = LocalDb.instance;
   final _apiUrl = 'https://openrouter.ai/api/v1';
   final _frontendUrl = 'https://openrouter.ai/api/frontend';
   final SettingsService _settingsService = SettingsService();

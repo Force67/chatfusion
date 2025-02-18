@@ -35,7 +35,8 @@ class _ChatScreenState extends State<ChatScreen> {
     super.dispose();
   }
 
-  Future<void> _showModelSelection(BuildContext context, ChatCubit cubit) async {
+  Future<void> _showModelSelection(
+      BuildContext context, ChatCubit cubit) async {
     showDialog(
       context: context,
       builder: (context) => ModelSelectionDialog(
@@ -53,7 +54,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return FutureBuilder<List<Message>>(
       future: state.isNewChat
           ? Future.value([])
-          : DatabaseHelper.instance.getMessages(state.currentChatId),
+          : LocalDb.instance.getMessages(state.currentChatId),
       builder: (context, snapshot) {
         final messages = snapshot.data ?? [];
 
@@ -69,8 +70,8 @@ class _ChatScreenState extends State<ChatScreen> {
               Expanded(
                 child: ListView.builder(
                   reverse: true,
-                  itemCount:
-                  messages.length + (state.isResponding ? 1 : 0), // Modified line
+                  itemCount: messages.length +
+                      (state.isResponding ? 1 : 0), // Modified line
                   itemBuilder: (context, index) {
                     // Streaming message
                     if (state.isResponding && index == 0) {
@@ -92,7 +93,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       reasoning: message.reasoning,
                       isUser: message.isUser,
                       isStreaming: false,
-                      onRetry: () => context.read<ChatCubit>().retryMessage(message),
+                      onRetry: () =>
+                          context.read<ChatCubit>().retryMessage(message),
                     );
                   },
                 ),
@@ -132,12 +134,13 @@ class _ChatScreenState extends State<ChatScreen> {
                   icon: const Icon(Icons.settings),
                   onPressed: () => Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => BlocProvider(
-                      create: (context) => SettingsCubit(),
-                     child: SettingsScreen(),
+                    MaterialPageRoute(
+                      builder: (context) => BlocProvider(
+                        create: (context) => SettingsCubit(),
+                        child: SettingsScreen(),
+                      ),
                     ),
                   ),
-                ),
                 ),
               ],
             ),
@@ -145,14 +148,21 @@ class _ChatScreenState extends State<ChatScreen> {
               child: ChatListSidebar(
                 currentChatId: state.currentChatId,
                 onChatSelected: (chatId) async {
-                  final chat = await DatabaseHelper.instance.getChat(chatId);
-                  final model = await context.read<ChatCubit>().getModelForChat(chat.modelId);
+                  final chats = await LocalDb.instance.chats;
+                  final chat = await chats.getChat(chatId);
+                  final model = await context
+                      .read<ChatCubit>()
+                      .getModelForChat(chat.modelId);
                   if (model != null) {
-                    context.read<ChatCubit>().initChat(chatId, model, chat.modelSettings ?? {});
+                    context
+                        .read<ChatCubit>()
+                        .initChat(chatId, model, chat.modelSettings ?? {});
                   }
                 },
-                onNewChat: () => _showModelSelection(context, context.read<ChatCubit>()),
-                onDeleteAllChats: () => context.read<ChatCubit>().deleteAllChats(),
+                onNewChat: () =>
+                    _showModelSelection(context, context.read<ChatCubit>()),
+                onDeleteAllChats: () =>
+                    context.read<ChatCubit>().deleteAllChats(),
                 getModelForChat: context.read<ChatCubit>().getModelForChat,
               ),
             ),
@@ -170,9 +180,11 @@ class _ChatScreenState extends State<ChatScreen> {
                   ModelSettingsSidebar(
                     model: state.selectedModel,
                     parameters: state.modelSettings,
-                    onParametersChanged: (newParams) =>
-                        context.read<ChatCubit>().updateModelSettings(newParams),
-                    onDismissed: () => setState(() => _isSettingsSidebarOpen = false),
+                    onParametersChanged: (newParams) => context
+                        .read<ChatCubit>()
+                        .updateModelSettings(newParams),
+                    onDismissed: () =>
+                        setState(() => _isSettingsSidebarOpen = false),
                   ),
                 ],
               ],
@@ -217,7 +229,8 @@ class _Input extends StatelessWidget {
                       IconButton(
                         icon: const Icon(Icons.close,
                             size: 18, color: Colors.blueGrey),
-                        onPressed: () =>  context.read<ChatCubit>().sendMessage("", null),
+                        onPressed: () =>
+                            context.read<ChatCubit>().sendMessage("", null),
                       ),
                     ],
                   ),
@@ -242,16 +255,19 @@ class _Input extends StatelessWidget {
                         return;
                       }
 
-                      final FileType fileType = state.selectedModel!.supportsImageInput
-                          ? FileType.image
-                          : FileType.custom;
+                      final FileType fileType =
+                          state.selectedModel!.supportsImageInput
+                              ? FileType.image
+                              : FileType.custom;
 
                       final List<String>? allowedExtensions =
                           state.selectedModel!.supportsImageInput
                               ? null
                               : ['txt', 'text'];
 
-                      context.read<ChatCubit>().attachFile(fileType,allowedExtensions);
+                      context
+                          .read<ChatCubit>()
+                          .attachFile(fileType, allowedExtensions);
                     },
                   ),
                   Expanded(
@@ -265,9 +281,11 @@ class _Input extends StatelessWidget {
                           borderRadius: BorderRadius.circular(30.0),
                         ),
                         contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 20.0),
+                            const EdgeInsets.symmetric(horizontal: 20.0),
                       ),
-                      onSubmitted: (text) => context.read<ChatCubit>().sendMessage(text, state.selectedImagePath),
+                      onSubmitted: (text) => context
+                          .read<ChatCubit>()
+                          .sendMessage(text, state.selectedImagePath),
                     ),
                   ),
                   IconButton(
@@ -275,10 +293,12 @@ class _Input extends StatelessWidget {
                       state.isStreaming ? Icons.stop : Icons.send,
                       color: state.isStreaming ? Colors.red : Colors.blueGrey,
                     ),
-                    tooltip: state.isStreaming ? "Stop generating" : "Send message",
+                    tooltip:
+                        state.isStreaming ? "Stop generating" : "Send message",
                     onPressed: state.isStreaming
                         ? () => context.read<ChatCubit>().stopGenerating()
-                        : () =>  context.read<ChatCubit>().sendMessage(_textController.text, state.selectedImagePath),
+                        : () => context.read<ChatCubit>().sendMessage(
+                            _textController.text, state.selectedImagePath),
                   ),
                 ],
               ),

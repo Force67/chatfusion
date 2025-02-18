@@ -18,7 +18,8 @@ class ChatCubit extends Cubit<ChatState> {
 
   ChatCubit() : super(ChatState.initial());
 
-  Future<void> initChat(int chatId, LLModel selectedModel, Map<String, dynamic> modelSettings) async {
+  Future<void> initChat(int chatId, LLModel selectedModel,
+      Map<String, dynamic> modelSettings) async {
     emit(state.copyWith(
       currentChatId: chatId,
       isNewChat: false,
@@ -54,7 +55,7 @@ class ChatCubit extends Cubit<ChatState> {
 
     try {
       // Insert message and get actual database ID
-      final insertedId = await DatabaseHelper.instance.insertMessage(userMessage);
+      final insertedId = await LocalDb.instance.insertMessage(userMessage);
       final validMessage = userMessage.copyWith(id: insertedId);
 
       await _sendToProvider(
@@ -79,23 +80,20 @@ class ChatCubit extends Cubit<ChatState> {
   }
 
   Future<void> retryMessage(Message messageToRetry) async {
-    final messages = await DatabaseHelper.instance.getMessages(state.currentChatId);
+    final messages = await LocalDb.instance.getMessages(state.currentChatId);
 
     // Find the user message that triggered this AI response
-    final userMessageIndex = messages.indexWhere(
-            (m) => m.id == messageToRetry.id - 1 && m.isUser
-    );
+    final userMessageIndex =
+        messages.indexWhere((m) => m.id == messageToRetry.id - 1 && m.isUser);
 
     if (userMessageIndex == -1) return;
 
     // Delete ONLY the target AI message
-    await DatabaseHelper.instance.deleteMessage(messageToRetry.id);
+    await LocalDb.instance.deleteMessage(messageToRetry.id);
 
     // Get messages up to (and including) the original user message
-    final contextMessages = messages
-        .sublist(0, userMessageIndex + 1)
-        .map((m) => m.text)
-        .toList();
+    final contextMessages =
+        messages.sublist(0, userMessageIndex + 1).map((m) => m.text).toList();
 
     // Regenerate with original context
     await _sendToProvider(
@@ -104,7 +102,6 @@ class ChatCubit extends Cubit<ChatState> {
       contextMessages: contextMessages,
     );
   }
-
 
   Future<void> createNewChat() async {
     if (state.selectedModel == null) return;
@@ -125,13 +122,14 @@ class ChatCubit extends Cubit<ChatState> {
       modelSettings: newModelSettings,
     );
 
-    final chatId = await DatabaseHelper.instance.insertChat(newChat);
+    final chats = await LocalDb.instance.chats;
+    final chatId = await chats.insertChat(newChat);
     emit(state.copyWith(currentChatId: chatId, isNewChat: false));
   }
 
   Future<void> deleteAllChats() async {
     try {
-      await DatabaseHelper.instance.clearChats();
+      await LocalDb.instance.clearChats();
       emit(state.copyWith(chatsDeleted: true)); // Flag for UI refresh
       emit(state.copyWith(chatsDeleted: false)); // Reset the flag
     } catch (e) {
@@ -139,7 +137,8 @@ class ChatCubit extends Cubit<ChatState> {
     }
   }
 
-  Future<void> attachFile(FileType fileType, List<String>? allowedExtensions) async {
+  Future<void> attachFile(
+      FileType fileType, List<String>? allowedExtensions) async {
     try {
       final FilePickerResult? result = await FilePicker.platform.pickFiles(
         type: fileType,
@@ -168,35 +167,39 @@ class ChatCubit extends Cubit<ChatState> {
   }
 
   Future<void> _sendToProvider(
-      Message userMessage, {
-        bool insertUserMessage = true,
-        List<String>? contextMessages,
-        String? imagePath,
-      }) async {
+    Message userMessage, {
+    bool insertUserMessage = true,
+    List<String>? contextMessages,
+    String? imagePath,
+  }) async {
     if (state.selectedModel == null) {
       emit(state.copyWith(errorMessage: 'Please select a model first'));
       return;
     }
 
-    emit(state.copyWith(isResponding: true, isStreaming: true, streamedResponse: '', streamedReasoning: ''));
-
+    emit(state.copyWith(
+        isResponding: true,
+        isStreaming: true,
+        streamedResponse: '',
+        streamedReasoning: ''));
 
     try {
       if (insertUserMessage) {
-        await DatabaseHelper.instance.insertMessage(userMessage);
+        await LocalDb.instance.insertMessage(userMessage);
       }
 
       // Use provided context or fetch fresh messages. Note ! state is immutable.
       final List<String> finalContext = contextMessages ??
-          (await DatabaseHelper.instance.getMessages(state.currentChatId))
-              .where((m) => m.id <= userMessage.id) // Only messages up to target user message
+          (await LocalDb.instance.getMessages(state.currentChatId))
+              .where((m) =>
+                  m.id <=
+                  userMessage.id) // Only messages up to target user message
               .map((m) => m.text)
               .toList();
 
       // If context was cleared, only use the latest user message
-      final processedContext = state.contextCleared
-          ? [userMessage.text]
-          : finalContext;
+      final processedContext =
+          state.contextCleared ? [userMessage.text] : finalContext;
 
       final stream = provider.streamResponse(
         state.selectedModel!.id,
@@ -205,14 +208,16 @@ class ChatCubit extends Cubit<ChatState> {
         imagePath: imagePath,
       );
 
-      StreamSubscription<TokenEvent> responseStreamSubscription = stream.listen((chunk) {
+      StreamSubscription<TokenEvent> responseStreamSubscription =
+          stream.listen((chunk) {
         if (chunk.type == TokenEventType.response) {
-          emit(state.copyWith(streamedResponse: state.streamedResponse + chunk.text));
+          emit(state.copyWith(
+              streamedResponse: state.streamedResponse + chunk.text));
         } else if (chunk.type == TokenEventType.reasoning) {
-          emit(state.copyWith(streamedReasoning: state.streamedReasoning + chunk.text));
+          emit(state.copyWith(
+              streamedReasoning: state.streamedReasoning + chunk.text));
         }
       }, onDone: () async {
-
         final aiMessage = Message(
           id: 0,
           chatId: state.currentChatId,
@@ -222,20 +227,20 @@ class ChatCubit extends Cubit<ChatState> {
           createdAt: DateTime.now(),
         );
 
-        await DatabaseHelper.instance.insertMessage(aiMessage);
+        await LocalDb.instance.insertMessage(aiMessage);
         emit(state.copyWith(isResponding: false, isStreaming: false));
-
       }, onError: (e) {
         emit(state.copyWith(
-            isResponding: false,
-            isStreaming: false,
-            errorMessage: 'Error: $e',
+          isResponding: false,
+          isStreaming: false,
+          errorMessage: 'Error: $e',
         ));
       });
-      emit(state.copyWith(responseStreamSubscription: responseStreamSubscription));
-
+      emit(state.copyWith(
+          responseStreamSubscription: responseStreamSubscription));
     } catch (e) {
-      emit(state.copyWith(errorMessage: 'Error: $e', isResponding: false, isStreaming: false));
+      emit(state.copyWith(
+          errorMessage: 'Error: $e', isResponding: false, isStreaming: false));
     }
   }
 

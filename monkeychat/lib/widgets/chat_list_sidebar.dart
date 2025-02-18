@@ -35,12 +35,14 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
   }
 
   Future<void> _loadFolders() async {
-    _folders = await DatabaseHelper.instance.getFolders();
+    _folders = await LocalDb.instance.getFolders();
     setState(() {});
   }
 
   Future<List<Chat>> _loadChats() async {
-    final db = DatabaseHelper.instance;
+    final db = LocalDb.instance;
+
+    final chatscol = await db.chats;
     if (_selectedFolderId != null) {
       final chatIds = await db.getChatsInFolder(_selectedFolderId!);
       if (chatIds.isEmpty) {
@@ -48,12 +50,12 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
       }
       List<Chat> chats = [];
       for (final chat in chatIds) {
-        final cht = await db.getChat(chat.id);
+        final cht = await chatscol.getChat(chat.id);
         chats.add(cht);
       }
       return chats;
     } else {
-      return await DatabaseHelper.instance.getChats();
+      return await chatscol.getChats();
     }
   }
 
@@ -85,7 +87,7 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                     name: folderName,
                     createdAt: DateTime.now(),
                   );
-                  await DatabaseHelper.instance.insertFolder(newFolder);
+                  await LocalDb.instance.insertFolder(newFolder);
                   await _loadFolders();
                   Navigator.of(context).pop();
                 }
@@ -237,7 +239,7 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                   name: newName,
                   createdAt: folder.createdAt,
                 );
-                await DatabaseHelper.instance.updateFolder(updatedFolder);
+                await LocalDb.instance.updateFolder(updatedFolder);
                 await _loadFolders();
                 if (mounted) Navigator.pop(context);
               }
@@ -262,7 +264,7 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
           ),
           TextButton(
             onPressed: () async {
-              await DatabaseHelper.instance
+              await LocalDb.instance
                   .deleteFolderAndRemoveChatsFromFolder(folder.id!);
               await _loadFolders();
               if (mounted) Navigator.pop(context);
@@ -452,10 +454,10 @@ class _ChatListItemState extends State<_ChatListItem> {
 
   Widget _buildFolderAssignment(BuildContext context) {
     return FutureBuilder<List<Folder>>(
-      future: DatabaseHelper.instance.getFolders(),
+      future: LocalDb.instance.getFolders(),
       builder: (context, foldersSnapshot) {
         return FutureBuilder<List<Folder>>(
-          future: DatabaseHelper.instance.getFoldersForChat(widget.chat.id),
+          future: LocalDb.instance.getFoldersForChat(widget.chat.id),
           builder: (context, selectedFoldersSnapshot) {
             final allFolders = foldersSnapshot.data ?? [];
             final selectedFolders = selectedFoldersSnapshot.data ?? [];
@@ -526,7 +528,7 @@ class _ChatListItemState extends State<_ChatListItem> {
                   // Remove the chat from deselected folders
                   for (final folderId in deselectedFolders) {
                     if (folderId != null) {
-                      await DatabaseHelper.instance
+                      await LocalDb.instance
                           .removeChatFromFolder(widget.chat.id, folderId);
                     }
                   }
@@ -538,7 +540,7 @@ class _ChatListItemState extends State<_ChatListItem> {
                   // Add the chat to newly selected folders
                   for (final folderId in newlySelectedFolders) {
                     if (folderId != null) {
-                      await DatabaseHelper.instance
+                      await LocalDb.instance
                           .addChatToFolder(widget.chat.id, folderId);
                     }
                   }

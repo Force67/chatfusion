@@ -7,17 +7,29 @@ import '../models/message.dart';
 import '../models/llm.dart';
 import 'dart:convert';
 
-class DatabaseHelper {
-  static final DatabaseHelper instance = DatabaseHelper._private();
+import 'chat_collection.dart';
+
+class LocalDb {
+  static final LocalDb instance = LocalDb._private();
   static Database? _database;
   static const int _version = 3; // Updated version
 
-  DatabaseHelper._private();
+  Database? _cachedDb;
+  ChatCollection? _chatCollection;
+
+  LocalDb._private();
 
   Future<Database> get database async {
     if (_database != null) return _database!;
     _database = await _initDatabase();
+    _cachedDb = _database;
     return _database!;
+  }
+
+  Future<ChatCollection> get chats async {
+    final db = _cachedDb ?? await database;
+    _chatCollection ??= ChatCollection(db);
+    return _chatCollection!;
   }
 
   Future<Database> _initDatabase() async {
@@ -119,22 +131,6 @@ class DatabaseHelper {
     }
   }
 
-  Future<int> insertChat(Chat chat) async {
-    final db = await instance.database;
-    return db.insert('chats', {
-      'title': chat.title,
-      'model_id': chat.modelId,
-      'created_at': chat.createdAt.toIso8601String(),
-      'params': jsonEncode(chat.modelSettings),
-    });
-  }
-
-  Future<List<Chat>> getChats() async {
-    final db = await instance.database;
-    final maps = await db.query('chats', orderBy: 'created_at DESC');
-    return maps.map((map) => Chat.fromMap(map)).toList();
-  }
-
   // Updated clear methods to handle schema changes
   Future<void> clearAll({bool deleteFolders = true}) async {
     //TODO: replace Placeholder boolean and actual implementation in GUI
@@ -196,16 +192,6 @@ class DatabaseHelper {
       orderBy: 'created_at',
     );
     return maps.map((map) => Message.fromMap(map)).toList();
-  }
-
-  Future<Chat> getChat(int chatId) async {
-    final db = await instance.database;
-    final maps = await db.query(
-      'chats',
-      where: 'id = ?',
-      whereArgs: [chatId],
-    );
-    return Chat.fromMap(maps.first);
   }
 
   // Improved model caching with transaction
