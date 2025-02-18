@@ -1,0 +1,118 @@
+import 'dart:convert';
+
+class ChatParameters {
+  // 0.0 - 2.0
+  // Variety of responses
+  double temperature = 1.0;
+
+  // 0.0 - 1.0, default 1.0
+  // Limits the response to a percentage of likely tokens
+  double topP = 1.0;
+
+  // >= 0.0, default 0.0
+  // Penalizes the model from repeating itself
+  double topK = 0.0;
+
+  // -2.0 to 2.0, default 0.0
+  // Control the repetition of tokens
+  double frequencyPenalty = 0.0;
+
+  // -2.0 to 2.0, default 0.0
+  // Adjust how often the model repeats specific tokens already used in the input.
+  double presencePenalty = 0.0;
+
+  // 0.0 - 2.0
+  // Adjust the likelihood of the model repeating the same response
+  double repetitionPenalty = 1.0;
+
+  // 0.0 - 1.0, default 0.0
+  // Minimum propability for a token to be considered
+  double minP = 0.0;
+
+  // 0.0 - 1.0, default 0.0
+  // Consider only the tokens with "Sufficiently high" probability
+  double topA = 0.0;
+
+  // Used for deterministic sampling, OPTIONAL
+  int? seed;
+
+  // Optional, 1 or above, upper limit on the number of tokens to generate
+  int? maxTokens;
+
+  // If true, the model will include reasoning for its response
+  bool? includeReasoning;
+
+  // Controls which (if any) tool is called by the model. ‘none’ means the model will not call any tool and instead generates a message.
+  //‘auto’ means the model can pick between generating a message or calling one or more tools.
+  //‘required’ means the model must call one or more tools. Specifying a particular tool via {"type": "function", "function": {"name": "my_function"}} forces the model to call that tool.
+  List<String>? toolChoices;
+
+  // Tool calling parameter, following OpenAI’s tool calling request shape. For non-OpenAI providers, it will be transformed accordingly
+  List<String>? toolOptions;
+
+  // Stop the generation if any of the words in the list are generated
+  List<String>? stop;
+
+  ChatParameters({
+    required this.temperature,
+    required this.topP,
+    required this.topK,
+    required this.frequencyPenalty,
+    required this.presencePenalty,
+    required this.repetitionPenalty,
+    required this.minP,
+    required this.topA,
+    this.seed,
+    this.maxTokens,
+    this.includeReasoning,
+    this.toolChoices,
+    this.toolOptions,
+    this.stop,
+  });
+
+  factory ChatParameters.fromMap(Map<String, dynamic> map) {
+    return ChatParameters(
+      temperature: map['temperature'],
+      topP: map['top_p'],
+      topK: map['top_k'],
+      frequencyPenalty: map['frequency_penalty'],
+      presencePenalty: map['presence_penalty'],
+      repetitionPenalty: map['repetition_penalty'],
+      minP: map['min_p'],
+      topA: map['top_a'],
+      seed: map['seed'],
+      maxTokens: map['max_tokens'],
+      includeReasoning: map['include_reasoning'],
+      toolChoices: map['tool_choices'],
+      toolOptions: map['tool_options'],
+      stop: map['stop'],
+    );
+  }
+}
+
+class Chat {
+  final int id;
+  final String title;
+  final String modelId;
+  final DateTime createdAt;
+
+  // Every chat has its own parameters, which can be modified by the user
+  // The default params shall be inherited from the settings, eventually
+  final ChatParameters params;
+
+  Chat({
+    required this.id,
+    required this.title,
+    required this.modelId,
+    required this.createdAt,
+    required this.params,
+  });
+
+  factory Chat.fromMap(Map<String, dynamic> map) => Chat(
+        id: map['id'],
+        title: map['title'],
+        modelId: map['model_id'],
+        createdAt: DateTime.parse(map['created_at']),
+        params: ChatParameters.fromMap(jsonDecode(map['params'])),
+      );
+}

@@ -1,6 +1,7 @@
 
-/monkeychat/macos/Runner
-/monkeychat/android-sdk
+/app/macos/Runner
+/app/android-sdk
 /android-sdk
-/monkeychat/android/app
-/monkeychat/linux
+/app/android/app
+/app/linux
+/app/ios/Runner.xcodeproj
