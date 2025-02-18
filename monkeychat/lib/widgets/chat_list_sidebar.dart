@@ -384,8 +384,7 @@ class _ChatListItem extends StatefulWidget {
     required this.getModelForChat,
     this.folderId,
     required this.onFolderUpdated,
-    Key? key,
-  }) : super(key: key);
+  });
 
   @override
   State<_ChatListItem> createState() => _ChatListItemState();

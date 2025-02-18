@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:monkeychat/services/settings_service.dart';
-import 'package:monkeychat/database/local_db.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:monkeychat/screens/settings/settings_cubit.dart';
 import 'package:monkeychat/screens/settings/settings_state.dart';

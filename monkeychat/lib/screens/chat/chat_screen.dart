@@ -4,14 +4,11 @@ import 'dart:async';
 import 'package:monkeychat/screens/settings/settings_screen.dart';
 import 'package:monkeychat/screens/settings/settings_cubit.dart';
 
-import 'package:monkeychat/services/ai_provider.dart';
 import 'package:monkeychat/database/local_db.dart';
-import 'package:monkeychat/models/chat.dart';
 import 'package:monkeychat/models/message.dart';
 import 'package:monkeychat/widgets/chat_message.dart';
 import 'package:monkeychat/services/settings_service.dart';
 import 'package:monkeychat/services/ai_provider_or.dart';
-import 'package:monkeychat/models/llm.dart';
 import 'package:monkeychat/widgets/model_selection_dialog.dart';
 import 'package:monkeychat/widgets/chat_list_sidebar.dart';
 import 'package:file_picker/file_picker.dart';
@@ -22,7 +19,7 @@ import 'chat_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({Key? key}) : super(key: key);
+  const ChatScreen({super.key});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -189,9 +186,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
 class _Input extends StatelessWidget {
   const _Input({
-    Key? key,
     required TextEditingController textController,
-  }) : _textController = textController, super(key: key);
+  }) : _textController = textController;
 
   final TextEditingController _textController;
 
