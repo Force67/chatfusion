@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:monkeychat/database/folder_collection.dart';
 import 'package:monkeychat/database/message_collection.dart';
+import 'package:monkeychat/models/folder.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/llm.dart';
@@ -11,7 +12,7 @@ import 'chat_collection.dart';
 class LocalDb {
   static final LocalDb instance = LocalDb._private();
   static Database? _database;
-  static const int _version = 3; // Updated version
+  static const int _version = 1; // Updated version
 
   Database? _cachedDb;
   ChatCollection? _chatCollection;
@@ -68,7 +69,8 @@ class LocalDb {
     CREATE TABLE folders(
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       name TEXT NOT NULL,
-      created_at TEXT NOT NULL
+      created_at TEXT NOT NULL,
+      system_folder boolean NOT NULL
     );
   ''');
 
@@ -131,6 +133,8 @@ class LocalDb {
         cached_at TEXT NOT NULL
       );
     ''');
+
+    _seedDefaultFolder(db);
     if (kDebugMode) {
       print("CREATED THE DB");
     }
@@ -163,6 +167,27 @@ class LocalDb {
     }
   }
 
+  Future<void> _seedDefaultFolder(Database db) async {
+    // Check if the "Default" folder already exists
+    final existingFolder = await db.query(
+      'folders',
+      where: 'id = ?',
+      whereArgs: [1],
+    );
+
+    // If it doesn't exist, insert it
+    if (existingFolder.isEmpty) {
+      final defaultFolder = Folder(
+        id: 1, // Explicitly set ID to 1
+        name: 'Default',
+        createdAt: DateTime.now(),
+        systemFolder: true,
+      );
+
+      await db.insert('folders', defaultFolder.toMap());
+    }
+  }
+
   // Updated clear methods to handle schema changes
   Future<void> clearAll({bool deleteFolders = true}) async {
     //TODO: replace Placeholder boolean and actual implementation in GUI
@@ -180,6 +205,7 @@ class LocalDb {
       if (deleteFolders) {
         // Ensure you delete from 'folders' AFTER deleting relationships from 'folders_to_chats'
         await txn.delete('folders');
+        _seedDefaultFolder(db);
       }
     });
   }

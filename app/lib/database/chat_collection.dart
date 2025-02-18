@@ -1,3 +1,4 @@
+import 'package:monkeychat/database/folder_collection.dart';
 import 'package:monkeychat/models/chat.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:convert';
@@ -57,6 +58,62 @@ class ChatCollection {
     } catch (e) {
       print("error getting chat: $e");
       rethrow;
+    }
+  }
+
+  // Helper function to delete a chat completely
+  Future<void> deleteChat(Transaction txn, int chatId) async {
+    // Remove from all folders
+    await txn.delete(
+      'folders_to_chats',
+      where: 'chat_id = ?',
+      whereArgs: [chatId],
+    );
+
+    // Delete messages for that chat
+    await txn.delete(
+      'messages',
+      where: 'chat_id = ?',
+      whereArgs: [chatId],
+    );
+
+    // Delete the chat itself
+    await txn.delete(
+      'chats',
+      where: 'id = ?',
+      whereArgs: [chatId],
+    );
+
+    // Check for and delete orphaned folders
+    final folderCollection = FolderCollection(db);
+    await folderCollection.deleteOrphanedFolders(txn);
+  }
+
+  Future<List<int>> findOrphanedChats(Transaction txn) async {
+    final orphanedChats = await txn.rawQuery('''
+    SELECT chats.id FROM chats
+    LEFT JOIN folders_to_chats ON chats.id = folders_to_chats.chat_id
+    WHERE folders_to_chats.chat_id IS NULL
+  ''');
+
+    return orphanedChats.map((c) => c['id'] as int).toList();
+  }
+
+  Future<void> deleteOrphanedChatsAndMessages(
+      Transaction txn, List<int> chatIds) async {
+    if (chatIds.isEmpty) return;
+
+    // Delete messages associated with orphaned chats
+    await txn.delete(
+      'messages',
+      where: 'chat_id IN (${List.filled(chatIds.length, '?').join(',')})',
+      whereArgs: chatIds,
+    );
+
+    // Delete orphaned chats
+    for (final chatId in chatIds) {
+      final chatCollection = ChatCollection(db);
+      await chatCollection.deleteChat(txn, chatId);
     }
   }
 }

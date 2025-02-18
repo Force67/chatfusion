@@ -1,3 +1,4 @@
+import 'package:monkeychat/database/chat_collection.dart';
 import 'package:monkeychat/models/chat.dart';
 import 'package:monkeychat/models/folder.dart';
 import 'package:sqflite/sqflite.dart';
@@ -14,6 +15,20 @@ class FolderCollection {
   Future<List<Folder>> getFolders() async {
     final maps = await db.query('folders', orderBy: 'created_at DESC');
     return maps.map((map) => Folder.fromMap(map)).toList();
+  }
+
+  Future<Folder?> getFolderById(int id) async {
+    final List<Map<String, dynamic>> maps = await db.query(
+      'folders',
+      where: 'id = ?',
+      whereArgs: [id],
+    );
+
+    if (maps.isNotEmpty) {
+      return Folder.fromMap(maps.first);
+    } else {
+      return null;
+    }
   }
 
   Future<void> addChatToFolder(int chatId, int folderId) async {
@@ -79,14 +94,10 @@ class FolderCollection {
   }
 
   Future<void> deleteFolder(int folderId) async {
-    await db.delete(
-      'folders',
-      where: 'id = ?',
-      whereArgs: [folderId],
-    );
-  }
-
-  Future<void> deleteFolderAndRemoveChatsFromFolder(int folderId) async {
+    final folder = await getFolderById(folderId);
+    if (folder != null && folder.systemFolder == true) {
+      throw Exception('Cannot delete system folder');
+    }
     await db.transaction((txn) async {
       // Let foreign key cascade handle the relationships
       await txn.delete(
@@ -94,70 +105,13 @@ class FolderCollection {
         where: 'id = ?',
         whereArgs: [folderId],
       );
+
+      final ChatCollection chatCollection = ChatCollection(db);
+      await chatCollection.findOrphanedChats(txn);
     });
   }
 
-  Future<void> deleteFolderAndChats(int folderId) async {
-    await db.transaction((txn) async {
-      // 1. First delete the folder (this will cascade to folders_to_chats)
-      await txn.delete(
-        'folders',
-        where: 'id = ?',
-        whereArgs: [folderId],
-      );
-
-      // 2. Find orphaned chats (not in any folders)
-      final orphanedChats = await txn.rawQuery('''
-      SELECT chats.id FROM chats
-      LEFT JOIN folders_to_chats ON chats.id = folders_to_chats.chat_id
-      WHERE folders_to_chats.chat_id IS NULL
-    ''');
-
-      // 3. Delete orphaned chats and their messages in batch
-      if (orphanedChats.isNotEmpty) {
-        final chatIds = orphanedChats.map((c) => c['id'] as int).toList();
-
-        await txn.delete(
-          'messages',
-          where: 'chat_id IN (${List.filled(chatIds.length, '?').join(',')})',
-          whereArgs: chatIds,
-        );
-
-        for (final chatId in chatIds) {
-          await _deleteChat(txn, chatId);
-        }
-      }
-    });
-  }
-
-  // Helper function to delete a chat completely
-  Future<void> _deleteChat(Transaction txn, int chatId) async {
-    // Remove from all folders
-    await txn.delete(
-      'folders_to_chats',
-      where: 'chat_id = ?',
-      whereArgs: [chatId],
-    );
-
-    // Delete messages for that chat
-    await txn.delete(
-      'messages',
-      where: 'chat_id = ?',
-      whereArgs: [chatId],
-    );
-
-    // Delete the chat itself
-    await txn.delete(
-      'chats',
-      where: 'id = ?',
-      whereArgs: [chatId],
-    );
-
-    // Check for and delete orphaned folders
-    await _deleteOrphanedFolders(txn);
-  }
-
-  Future<void> _deleteOrphanedFolders(Transaction txn) async {
+  Future<void> deleteOrphanedFolders(Transaction txn) async {
     // Get all folders that have no associated chats
     final orphanedFolders = await txn.rawQuery('''
     SELECT f.id

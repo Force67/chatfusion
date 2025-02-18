@@ -88,6 +88,7 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                   final newFolder = Folder(
                     name: folderName,
                     createdAt: DateTime.now(),
+                    systemFolder: false,
                   );
                   final folderColl = await LocalDb.instance.folders;
                   await folderColl.insertFolder(newFolder);
@@ -241,6 +242,7 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                   id: folder.id,
                   name: newName,
                   createdAt: folder.createdAt,
+                  systemFolder: false,
                 );
                 final folderColl = await LocalDb.instance.folders;
                 await folderColl.updateFolder(updatedFolder);
@@ -268,10 +270,23 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
           ),
           TextButton(
             onPressed: () async {
-              final folderColl = await LocalDb.instance.folders;
-              await folderColl.deleteFolderAndRemoveChatsFromFolder(folder.id!);
-              await _loadFolders();
-              if (mounted) Navigator.pop(context);
+              // Close the dialog immediately after pressing "Delete"
+              Navigator.pop(context);
+
+              try {
+                final folderColl = await LocalDb.instance.folders;
+                await folderColl.deleteFolder(folder.id!);
+                await _loadFolders();
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Failed to delete folder: ${e.toString()}'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                }
+              }
             },
             child: const Text('Delete', style: TextStyle(color: Colors.red)),
           ),
