@@ -21,6 +21,21 @@ class ChatCollection {
     }
   }
 
+  Future<void> updateTitle(int chatId, String title) async {
+    // Update the chat title
+    try {
+      await db.update(
+        'chats',
+        {'title': title},
+        where: 'id = ?',
+        whereArgs: [chatId],
+      );
+    } catch (e) {
+      print('Error updating chat title: $e');
+      // Or throw an exception
+    }
+  }
+
   Future<bool> updateParams(int chatId, Map<String, dynamic> params) async {
     try {
       final result = await db.update(

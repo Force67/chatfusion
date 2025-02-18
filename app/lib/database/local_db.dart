@@ -165,32 +165,74 @@ class LocalDb {
 
   // Updated clear methods to handle schema changes
   Future<void> clearAll({bool deleteFolders = true}) async {
-    //TODO: replace Placeholder boolean and actual implementation in GUI
     final db = await instance.database;
     await db.transaction((txn) async {
-      // 1. Crucially, remove all folder relationships first
-      await txn.delete('folders_to_chats');
-
-      // 2. Delete all chats and messages
+      // This Order IS CRITICAL
+      await txn.delete('attachments'); //Depends on messages
+      await txn.delete('messages'); //Depends on chats
+      await txn.delete('folders_to_chats'); //Depends on folders and chats
       await txn.delete('chats');
-      await txn.delete('messages');
-      await txn.delete('cached_models');
-
-      // 3. Optionally delete all folders
       if (deleteFolders) {
-        // Ensure you delete from 'folders' AFTER deleting relationships from 'folders_to_chats'
         await txn.delete('folders');
       }
+      await txn.delete('cached_models');
     });
   }
 
   Future<void> clearChats() async {
     final db = await instance.database;
     await db.transaction((txn) async {
-      await txn.delete('chats');
-      await txn.delete('messages');
-      await txn
-          .delete('folders_to_chats'); // Crucial: remove folder relationships
+      // 1. Delete attachments FIRST, as they depend on messages
+      if (kDebugMode) {
+        print("Deleting attachments related to chats...");
+      }
+
+      // THIS IS THE KEY - Only delete attachments related to the CHATS
+      // that are being cleared.  Assuming `messages` will also be deleted,
+      // filter by `message_id` belonging to `messages` in the `chat_id`
+      // for chats being cleared.  A join is needed. VERY IMPORTANT.
+      final String attachmentDeleteSQL = '''
+      DELETE FROM attachments
+      WHERE message_id IN (SELECT id FROM messages WHERE chat_id IN (SELECT id FROM chats));
+    ''';
+
+      await txn.execute(attachmentDeleteSQL);
+
+      // 2. Delete messages NEXT, as they depend on chats.
+      if (kDebugMode) {
+        print("Deleting messages...");
+      }
+      txn.delete('messages');
+
+      // 3. Delete folder relationships.  CRUCIAL. This depends on both folders AND CHATS
+      if (kDebugMode) {
+        print("Deleting folder_to_chats entries...");
+      }
+
+      // LIKE attachments, only delete the folder relationships for the
+      // chats being cleared/deleted.
+      final String foldersToChatsDeleteSQL = '''
+      DELETE FROM folders_to_chats
+      WHERE chat_id IN (SELECT id FROM chats);
+    '''; //Only delete the folder relationships to this chat
+
+      await txn.execute(foldersToChatsDeleteSQL);
+
+      // 4. Delete chats. This should now succeed because dependencies are removed
+      if (kDebugMode) {
+        print("Deleting chats...");
+      }
+      try {
+        int chatsDeleted = await txn.delete('chats');
+        if (kDebugMode) {
+          print("Deleted $chatsDeleted chats.");
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print("Error Deleting:");
+          print(e);
+        }
+      }
     });
   }
 

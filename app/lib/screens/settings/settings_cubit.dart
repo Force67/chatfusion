@@ -1,4 +1,5 @@
 import 'package:bloc/bloc.dart';
+import 'package:flutter/foundation.dart';
 import 'package:monkeychat/services/settings_service.dart';
 import 'package:monkeychat/screens/settings/settings_state.dart';
 import 'package:monkeychat/database/local_db.dart';
@@ -81,11 +82,16 @@ class SettingsCubit extends Cubit<SettingsState> {
       await chats.getChats(); // Refreshing chats after clearing
       emit(state.copyWith(isLoading: false));
       //Potentially emit a new state that the chat database has been cleared for UI updates in other parts of your app if needed.
-    } catch (e) {
+    } catch (e, stacktrace) {
       emit(state.copyWith(
         isLoading: false,
         errorMessage: 'Failed to clear chat database: $e',
       ));
+      if (kDebugMode) {
+        print(stacktrace);
+      }
     }
   }
+
+  Future<void> clearCachedData() async {}
 }

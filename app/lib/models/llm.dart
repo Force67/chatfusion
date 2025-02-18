@@ -8,6 +8,12 @@ class LLModel {
   final bool supportsImageOutput;
   final bool supportsReasoning;
   final bool supportsReasoningDisplay;
+
+  /*final double pricingPrompt;
+  final double pricingCompletion;
+  final double pricingImage;
+  final double pricingRequest;*/
+
   final List<String> tunableParameters;
 
   LLModel({
@@ -41,7 +47,8 @@ class LLModel {
         supportsImageInput: json['capabilities']['supports_image_input'],
         supportsImageOutput: json['capabilities']['supports_image_output'],
         supportsReasoning: json['capabilities']['supports_reasoning'],
-        supportsReasoningDisplay: json['capabilities']['supports_reasoning_display'],
+        supportsReasoningDisplay: json['capabilities']
+            ['supports_reasoning_display'],
         tunableParameters: json['tunable_parameters'] != null
             ? List<String>.from(json['tunable_parameters'])
             : [],

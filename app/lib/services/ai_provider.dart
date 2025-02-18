@@ -21,5 +21,8 @@ abstract class AIProvider {
   Stream<TokenEvent> streamResponse(String modelId, String question,
       Map<String, dynamic> params, List<String>? attachmentPaths);
 
+  // Fetches the response and only returns on completion
+  Future<String> fetchResponse(String modelId, String question);
+
   Future<String> fetchImageURL(String modelId);
 }

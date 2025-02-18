@@ -174,11 +174,13 @@ class AIProviderOpenrouter extends AIProvider {
         doesReasoning = additionalKnownReasoningModels.contains(permaslug);
       }
 
+      final String providerName = endpoint['provider_info']['name'];
+
       return LLModel(
         id: permaslug,
         name: shortName,
         description: description,
-        provider: "NOPE",
+        provider: providerName,
         iconUrl: iconUrl,
         supportsImageInput: modelCapabilities.supportsImageInput,
         supportsImageOutput: modelCapabilities.supportsImageOutput,
@@ -243,6 +245,38 @@ class AIProviderOpenrouter extends AIProvider {
     final models = await getModels();
     final model = models.where((element) => element.id == modelId).toList();
     return model[0].iconUrl;
+  }
+
+  @override
+  Future<String> fetchResponse(String modelId, String question) async {
+    final url = Uri.parse('$_apiUrl/chat/completions');
+    final apiKey = await _settingsService.getApiKey();
+    if (apiKey == null) {
+      print('API key not set');
+      return "<>";
+    }
+
+    final response = await http.post(
+      Uri.parse('https://openrouter.ai/api/v1/chat/completions'),
+      headers: {
+        'Authorization': 'Bearer $apiKey',
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        //  'model': 'openai/gpt-3.5-turbo',
+        'model': modelId,
+        'messages': [
+          {'role': 'user', 'content': question}
+        ],
+      }),
+    );
+
+    if (response.statusCode == 200) {
+      final responseBody = jsonDecode(response.body);
+      return responseBody['choices'][0]['message']['content'];
+    }
+
+    return "<>";
   }
 
   // modelID is the model to use
