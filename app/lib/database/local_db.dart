@@ -99,16 +99,31 @@ class LocalDb {
     // Text may not be null, but empty is fine, for instance if the user only
     // sends a "message" with an image
     // as for type, 0 is user, 1 is bot, 2 is system
+    // "attachment_paths" contains a list of paths to images or other attachments
     await db.execute('''
       CREATE TABLE messages(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         chat_id INTEGER NOT NULL,
         type INTEGER NOT NULL,
         text TEXT NOT NULL,
-        image_path TEXT,
         reasoning TEXT,
         created_at TEXT NOT NULL,
         FOREIGN KEY(chat_id) REFERENCES chats(id)
+      );
+    ''');
+
+    // data may include the attachment (if its small enough, else it will point
+    // to a physical file)
+    // the mime type is important for the client to know how to handle the data
+    await db.execute('''
+      CREATE TABLE attachments (
+        attachment_id TEXT PRIMARY KEY,
+        message_id INTEGER NOT NULL,
+        mime_type TEXT NOT NULL,
+        is_file_path INTEGER NOT NULL DEFAULT 0,  -- 0 = data, 1 = file path
+        data TEXT,
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (message_id) REFERENCES messages(id)
       );
     ''');
 

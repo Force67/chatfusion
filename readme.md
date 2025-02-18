@@ -1,6 +1,6 @@
 ## Monkeychat
 
-An AI chat frontend for power users.
+Pretty cool AI chat frontend for power users.
 
 As someone who uses AI a lot, i wanted to have a frontend for chatting with LLMs that doesn't suck. For me that includes:
 

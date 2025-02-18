@@ -9,6 +9,8 @@ import 'package:monkeychat/models/message.dart';
 import 'package:monkeychat/services/ai_provider.dart';
 import 'package:monkeychat/models/llm.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:mime/mime.dart';
+import 'dart:io';
 
 import "chat_state.dart";
 
@@ -127,6 +129,7 @@ class ChatCubit extends Cubit<ChatState> {
         type: MessageType.system,
         text: messageText,
         reasoning: "",
+        attachments: [],
         createdAt: DateTime.now());
 
     final localDb = LocalDb.instance;
@@ -136,20 +139,28 @@ class ChatCubit extends Cubit<ChatState> {
     emit(state.copyWith()); // trigger rebuild so the ui picks up the change
   }
 
+  // Modify sendMessage to handle File objects
   Future<void> sendMessage(String text, List<String> attachmentPaths) async {
     if (state.selectedModel == null) {
       emit(state.copyWith(errorMessage: 'Please select a model first'));
       return;
     }
+
     if (text.trim().isEmpty) return;
 
-    // Create temporary message with placeholder ID
+    List<File> attachmentFiles = [];
+    // Create File objects from the selected paths
+    for (final path in attachmentPaths) {
+      attachmentFiles.add(File(path));
+    }
+
     final userMessage = Message(
-      id: -1, // Temporary invalid ID
+      id: -1, // Temp
       chatId: state.currentChatId,
       text: text,
       reasoning: "",
       type: MessageType.user,
+      attachments: [], // The attachments get added when they are written to the database
       createdAt: DateTime.now(),
     );
 
@@ -208,6 +219,7 @@ class ChatCubit extends Cubit<ChatState> {
       messages[userMessageIndex],
       insertUserMessage: false,
       contextMessages: contextMessages,
+      attachmentPaths: [], //TODO Potentially add attachments
     );
   }
 
@@ -295,6 +307,9 @@ class ChatCubit extends Cubit<ChatState> {
       emit(state.copyWith(errorMessage: 'Please select a model first'));
       return;
     }
+
+    print("whatsup???");
+
     // create a chat instance
     final msgs = await LocalDb.instance.messages;
     emit(state.copyWith(
@@ -305,6 +320,7 @@ class ChatCubit extends Cubit<ChatState> {
 
     try {
       if (insertUserMessage) {
+        //We do insert it but don't need to add attachmemnts here
         await msgs.insertMessage(userMessage);
       }
 
@@ -325,7 +341,7 @@ class ChatCubit extends Cubit<ChatState> {
         state.selectedModel!.id,
         processedContext.join('\n'),
         state.modelSettings,
-        attachmentPaths,
+        attachmentPaths, //TODO potentially add attachments
       );
 
       StreamSubscription<TokenEvent> responseStreamSubscription =
@@ -345,6 +361,7 @@ class ChatCubit extends Cubit<ChatState> {
           reasoning: state.streamedReasoning,
           type: MessageType.bot,
           createdAt: DateTime.now(),
+          attachments: [], // AI message does not take attachments currently
         );
 
         await msgs.insertMessage(aiMessage);
