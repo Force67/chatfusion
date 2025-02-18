@@ -31,34 +31,32 @@ class FolderCollection {
     }
   }
 
-  Future<void> addChatToFolder(int chatId, int folderId) async {
+  Future<void> addChatToFolder(int chatId, int folderId,
+      {DatabaseExecutor? executor}) async {
+    final dbExecutor = executor ?? db;
     // Check if the record already exists
-    final existingRecord = await db.query(
+    final existingRecord = await dbExecutor.query(
       'folders_to_chats',
       where: 'chat_id = ? AND folder_id = ?',
       whereArgs: [chatId, folderId],
     );
 
     if (existingRecord.isNotEmpty) {
-      // If the record exists, update it (if needed)
-      await db.update(
+      // Update the timestamp if exists
+      await dbExecutor.update(
         'folders_to_chats',
-        {
-          'created_at':
-              DateTime.now().toIso8601String(), // Update the timestamp
-        },
+        {'created_at': DateTime.now().toIso8601String()},
         where: 'chat_id = ? AND folder_id = ?',
         whereArgs: [chatId, folderId],
       );
     } else {
-      // If the record does not exist, insert it
-      await db.insert(
+      // Insert new relationship
+      await dbExecutor.insert(
         'folders_to_chats',
         {
           'chat_id': chatId,
           'folder_id': folderId,
-          'created_at':
-              DateTime.now().toIso8601String(), // Include the timestamp
+          'created_at': DateTime.now().toIso8601String(),
         },
         conflictAlgorithm: ConflictAlgorithm.replace,
       );
@@ -66,6 +64,7 @@ class FolderCollection {
   }
 
   Future<void> removeChatFromFolder(int chatId, int folderId) async {
+    // TODO: move to Default if orphaned
     await db.delete(
       'folders_to_chats',
       where: 'chat_id = ? AND folder_id = ?',
@@ -111,23 +110,14 @@ class FolderCollection {
     });
   }
 
-  Future<void> deleteOrphanedFolders(Transaction txn) async {
-    // Get all folders that have no associated chats
-    final orphanedFolders = await txn.rawQuery('''
-    SELECT f.id
-    FROM folders f
-    LEFT JOIN folders_to_chats ftc ON f.id = ftc.folder_id
-    WHERE ftc.chat_id IS NULL
-  ''');
+  Future<void> deleteOrphanedChatsAndMessages(
+      Transaction txn, List<int> chatIds) async {
+    if (chatIds.isEmpty) return;
 
-    // Delete orphaned folders
-    for (final folder in orphanedFolders) {
-      final folderId = folder['id'] as int;
-      await txn.delete(
-        'folders',
-        where: 'id = ?',
-        whereArgs: [folderId],
-      );
+    // Assign orphaned chats to folder 1
+    final folderCollection = FolderCollection(db);
+    for (final chatId in chatIds) {
+      await folderCollection.addChatToFolder(chatId, 1, executor: txn);
     }
   }
 

@@ -10,15 +10,23 @@ class ChatCollection {
 
   Future<int> insertChat(Chat chat) async {
     try {
-      return await db.insert('chats', {
-        'title': chat.title,
-        'model_id': chat.modelId,
-        'created_at': chat.createdAt.toIso8601String(),
-        'params': jsonEncode(chat.modelSettings),
+      int chatId = -1;
+      await db.transaction((txn) async {
+        chatId = await txn.insert('chats', {
+          'title': chat.title,
+          'model_id': chat.modelId,
+          'created_at': chat.createdAt.toIso8601String(),
+          'params': jsonEncode(chat.modelSettings),
+        });
+
+        // Automatically assign to folder 1
+        FolderCollection folderCollection = FolderCollection(db);
+        await folderCollection.addChatToFolder(chatId, 1, executor: txn);
       });
+      return chatId;
     } catch (e) {
       print('Error inserting chat: $e');
-      return -1; // Or throw an exception
+      return -1;
     }
   }
 
@@ -83,10 +91,6 @@ class ChatCollection {
       where: 'id = ?',
       whereArgs: [chatId],
     );
-
-    // Check for and delete orphaned folders
-    final folderCollection = FolderCollection(db);
-    await folderCollection.deleteOrphanedFolders(txn);
   }
 
   Future<List<int>> findOrphanedChats(Transaction txn) async {
