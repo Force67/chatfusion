@@ -1,6 +1,9 @@
+import 'dart:io';
+import 'dart:convert'; // Import for Base64 decoding
 import 'package:flutter/material.dart';
 import 'package:latext/latext.dart';
 import 'package:flutter/services.dart';
+import 'package:monkeychat/models/message.dart';
 
 class ChatMessage extends StatefulWidget {
   final String text;
@@ -8,6 +11,7 @@ class ChatMessage extends StatefulWidget {
   final bool isStreaming;
   final String? reasoning;
   final VoidCallback? onRetry;
+  final List<Attachment> attachments;
 
   const ChatMessage({
     super.key,
@@ -16,6 +20,7 @@ class ChatMessage extends StatefulWidget {
     this.isStreaming = false,
     this.reasoning,
     this.onRetry,
+    this.attachments = const [],
   });
 
   @override
@@ -30,6 +35,52 @@ class _ChatMessageState extends State<ChatMessage> {
     super.initState();
     // Show reasoning during streaming, collapse when finalized
     _showReasoning = widget.isStreaming && widget.reasoning?.isNotEmpty == true;
+  }
+
+  Widget _buildAttachmentDisplay(BuildContext context, Attachment attachment) {
+    if (attachment.mimeType.startsWith('image/')) {
+      Widget imageWidget;
+      if (attachment.isFilePath) {
+        // Load image from file path
+        imageWidget = Image.file(File(attachment.data));
+      } else {
+        // Decode Base64 image data
+        try {
+          final decodedBytes = base64Decode(attachment.data);
+          imageWidget = Image.memory(decodedBytes);
+        } catch (e) {
+          print("Error decoding base64 image: $e");
+          return const Text(
+              "Error displaying image"); // Handle potential errors
+        }
+      }
+
+      return Padding(
+        padding:
+            const EdgeInsets.only(right: 4.0), // Add spacing between images
+        child: ClipRRect(
+          // Rounded corners
+          borderRadius: BorderRadius.circular(8.0),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: 80, // Slightly smaller max width
+              maxHeight: 80, // Slightly smaller max height
+            ),
+            child: SizedBox(
+              width: double.infinity,
+              height: double.infinity,
+              child: FittedBox(
+                fit: BoxFit.cover, // slightly crop the image
+                child: imageWidget,
+              ),
+            ),
+          ),
+        ),
+      );
+    } else {
+      // Handle other attachment types (e.g., show an icon)
+      return const Icon(Icons.attach_file); // Generic file icon
+    }
   }
 
   @override
@@ -100,6 +151,7 @@ class _ChatMessageState extends State<ChatMessage> {
                           ),
                       ],
                     ),
+
                   // Main message content
                   widget.isStreaming
                       ? SelectableText(
@@ -116,6 +168,24 @@ class _ChatMessageState extends State<ChatMessage> {
                             ),
                           ),
                         ),
+
+                  const SizedBox(
+                      height: 4), // Add spacing between text and images
+
+                  // Horizontal Attachment Display
+                  if (widget.attachments.isNotEmpty)
+                    SizedBox(
+                      height: 80, // Fixed height for the horizontal list
+                      child: ListView.builder(
+                        scrollDirection: Axis.horizontal,
+                        itemCount: widget.attachments.length,
+                        itemBuilder: (context, index) {
+                          return _buildAttachmentDisplay(
+                              context, widget.attachments[index]);
+                        },
+                      ),
+                    ),
+
                   const SizedBox(height: 2),
                   // Copy and retry buttons
                   Align(
@@ -125,12 +195,14 @@ class _ChatMessageState extends State<ChatMessage> {
                       children: [
                         if (!widget.isUser && widget.onRetry != null)
                           IconButton(
-                            icon: const Icon(Icons.refresh, size: 10, color: Colors.white),
+                            icon: const Icon(Icons.refresh,
+                                size: 10, color: Colors.white),
                             onPressed: widget.onRetry,
                             tooltip: 'Retry',
                           ),
                         IconButton(
-                          icon: const Icon(Icons.copy, size: 10, color: Colors.white),
+                          icon: const Icon(Icons.copy,
+                              size: 10, color: Colors.white),
                           onPressed: () => _copyToClipboard(context),
                           tooltip: 'Copy whole message',
                         ),

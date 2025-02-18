@@ -6,7 +6,6 @@ import 'package:monkeychat/screens/settings/settings_screen.dart';
 import 'package:monkeychat/screens/settings/settings_cubit.dart';
 
 import 'package:monkeychat/database/local_db.dart';
-import 'package:monkeychat/database/message_collection.dart';
 
 import 'package:monkeychat/models/message.dart';
 import 'package:monkeychat/widgets/chat_message.dart';
@@ -114,6 +113,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         reasoning: message.reasoning,
                         isUser: message.isUser(),
                         isStreaming: false,
+                        attachments: message.attachments,
                         onRetry: () =>
                             context.read<ChatCubit>().retryMessage(message),
                       );

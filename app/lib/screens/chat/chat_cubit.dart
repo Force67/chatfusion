@@ -1,7 +1,6 @@
 // chat_cubit.dart
 import 'dart:async';
 import 'package:bloc/bloc.dart';
-import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:monkeychat/database/local_db.dart';
 import 'package:monkeychat/models/chat.dart';
@@ -9,7 +8,6 @@ import 'package:monkeychat/models/message.dart';
 import 'package:monkeychat/services/ai_provider.dart';
 import 'package:monkeychat/models/llm.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:mime/mime.dart';
 import 'dart:io';
 
 import "chat_state.dart";
@@ -112,10 +110,6 @@ class ChatCubit extends Cubit<ChatState> {
     final chats = await LocalDb.instance.chats;
     final chatId = state.currentChatId;
 
-    if (chatId == null) {
-      return;
-    }
-
     chats.updateParams(chatId, newParams);
     emit(state.copyWith(modelSettings: newParams));
   }
@@ -166,8 +160,10 @@ class ChatCubit extends Cubit<ChatState> {
 
     try {
       final msgs = await LocalDb.instance.messages;
+
       // Insert message and get actual database ID
-      final insertedId = await msgs.insertMessage(userMessage);
+      final insertedId = await msgs.insertMessage(userMessage,
+          attachmentFiles: attachmentFiles);
       final validMessage = userMessage.copyWith(id: insertedId);
 
       await _sendToProvider(
