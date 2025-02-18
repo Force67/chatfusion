@@ -52,6 +52,21 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Widget _buildSystemMessage(String message) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      child: Text(
+        message,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          fontStyle: FontStyle.italic,
+          color: Colors.grey,
+        ),
+      ),
+    );
+  }
+
   Widget _buildMainContent(BuildContext context, ChatState state) {
     return FutureBuilder<List<Message>>(
       future: state.isNewChat
@@ -73,12 +88,10 @@ class _ChatScreenState extends State<ChatScreen> {
               Expanded(
                 child: ListView.builder(
                   reverse: true,
-                  itemCount: messages.length +
-                      (state.isResponding ? 1 : 0), // Modified line
+                  itemCount: messages.length + (state.isResponding ? 1 : 0),
                   itemBuilder: (context, index) {
-                    // Streaming message
+                    // Adjustments for streaming message
                     if (state.isResponding && index == 0) {
-                      // Modified condition
                       return ChatMessage(
                         text: state.streamedResponse,
                         isUser: false,
@@ -87,18 +100,23 @@ class _ChatScreenState extends State<ChatScreen> {
                       );
                     }
 
-                    // Adjust index for finalized messages
                     final messageIndex = state.isResponding ? index - 1 : index;
                     final message = messages.reversed.toList()[messageIndex];
 
-                    return ChatMessage(
-                      text: message.text,
-                      reasoning: message.reasoning,
-                      isUser: message.isUser,
-                      isStreaming: false,
-                      onRetry: () =>
-                          context.read<ChatCubit>().retryMessage(message),
-                    );
+                    // Render differently based on message type
+                    if (message.isSystem()) {
+                      return _buildSystemMessage(
+                          message.text); //call new build system message
+                    } else {
+                      return ChatMessage(
+                        text: message.text,
+                        reasoning: message.reasoning,
+                        isUser: message.isUser(),
+                        isStreaming: false,
+                        onRetry: () =>
+                            context.read<ChatCubit>().retryMessage(message),
+                      );
+                    }
                   },
                 ),
               ),

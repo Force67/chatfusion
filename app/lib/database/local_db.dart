@@ -96,13 +96,17 @@ class LocalDb {
       );
     ''');
 
+    // Text may not be null, but empty is fine, for instance if the user only
+    // sends a "message" with an image
+    // as for type, 0 is user, 1 is bot, 2 is system
     await db.execute('''
       CREATE TABLE messages(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         chat_id INTEGER NOT NULL,
+        type INTEGER NOT NULL,
         text TEXT NOT NULL,
+        image_path TEXT,
         reasoning TEXT,
-        is_user INTEGER NOT NULL,
         created_at TEXT NOT NULL,
         FOREIGN KEY(chat_id) REFERENCES chats(id)
       );

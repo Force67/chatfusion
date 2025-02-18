@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
 import 'package:monkeychat/database/local_db.dart';
 import 'package:monkeychat/models/chat.dart';
 import 'package:monkeychat/models/message.dart';
@@ -12,6 +13,12 @@ import 'package:file_picker/file_picker.dart';
 import "chat_state.dart";
 
 import "package:monkeychat/services/ai_provider_or.dart";
+
+extension StringExtension on String {
+  String capitalize() {
+    return "${this[0].toUpperCase()}${this.substring(1)}";
+  }
+}
 
 class ChatCubit extends Cubit<ChatState> {
   final AIProvider provider = AIProviderOpenrouter();
@@ -32,8 +39,103 @@ class ChatCubit extends Cubit<ChatState> {
     emit(state.copyWith(selectedModel: model, modelSettings: {}));
   }
 
-  void updateModelSettings(Map<String, dynamic> newSettings) {
-    emit(state.copyWith(modelSettings: newSettings));
+  // Helper function to compare new and old settings and format the output.
+  String _formatSettingsChanges(
+      Map<String, dynamic> oldParams, Map<String, dynamic> newParams) {
+    List<String> changes = [];
+
+    // List of parameter keys we want to display (customize this). Make sure it matches the models keys
+    const displayKeys = [
+      'temperature',
+      'max_tokens',
+      'top_p'
+    ]; // Add all appropriate keys
+
+    for (final key in displayKeys) {
+      final oldValue = oldParams[key];
+      final newValue = newParams[key];
+      //check both null or both not null, if both null its ok and there is no change, same with not null both values should be the same
+      if ((oldValue == null && newValue != null) ||
+          (oldValue != null && newValue == null) ||
+          (oldValue != newValue)) {
+        changes.add(
+            "${_formatKeyName(key)} changed to: ${newValue ?? 'default'}"); // Use a helper to format key name
+      }
+    }
+
+    return changes.join(", ");
+  }
+
+  // Helper function to make key names more readable.
+  String _formatKeyName(String key) {
+    switch (key) {
+      case 'temperature':
+        return 'Temperature';
+      case 'max_tokens':
+        return 'Max Tokens';
+      case 'top_p':
+        return 'Top P';
+      // add all necessary cases
+      default:
+        return key.replaceAll('_', ' ').capitalize(); // general fallback
+    }
+  }
+
+  Future<void> updateModelSettings(Map<String, dynamic> newParams) async {
+    final currentModel = state.selectedModel;
+
+    if (currentModel == null) {
+      return;
+    }
+
+    // Format the settings and their values into a human-readable string.
+    String settingsChanges =
+        _formatSettingsChanges(state.modelSettings, newParams);
+
+    // If no settings were actually changed, don't add a message.
+    if (settingsChanges.isEmpty) {
+      return; // early exist
+    }
+
+    // Create and add the system message.
+    await _addSystemMessage("Params updated: $settingsChanges");
+
+    // Persist/update the new settings
+    final chats = await LocalDb.instance.chats;
+    final chatId = state.currentChatId;
+
+    if (chatId == null) {
+      return;
+    }
+
+    chats.updateParams(chatId, newParams);
+    emit(state.copyWith(modelSettings: newParams));
+  }
+
+  void _emitNewState() {
+    emit(state.copyWith());
+  }
+
+  Future<void> _addSystemMessage(String messageText) async {
+    final chatId = state.currentChatId;
+    if (chatId == null) {
+      print("cannot create message without a chatid");
+      return;
+    }
+
+    final message = Message(
+        id: DateTime.now().millisecondsSinceEpoch,
+        chatId: chatId,
+        type: MessageType.system,
+        text: messageText,
+        reasoning: "",
+        createdAt: DateTime.now());
+
+    final localDb = LocalDb.instance;
+    final messageCollection = await localDb.messages;
+    await messageCollection.insertMessage(message);
+
+    emit(state.copyWith()); // trigger rebuild so the ui picks up the change
   }
 
   Future<void> sendMessage(String text, String? imagePath) async {
@@ -49,7 +151,7 @@ class ChatCubit extends Cubit<ChatState> {
       chatId: state.currentChatId,
       text: text,
       reasoning: "",
-      isUser: true,
+      type: MessageType.user,
       createdAt: DateTime.now(),
     );
 
@@ -86,7 +188,7 @@ class ChatCubit extends Cubit<ChatState> {
 
     // Find the user message that triggered this AI response
     final userMessageIndex =
-        messages.indexWhere((m) => m.id == messageToRetry.id - 1 && m.isUser);
+        messages.indexWhere((m) => m.id == messageToRetry.id - 1 && m.isUser());
 
     if (userMessageIndex == -1) return;
 
@@ -226,7 +328,7 @@ class ChatCubit extends Cubit<ChatState> {
           chatId: state.currentChatId,
           text: state.streamedResponse,
           reasoning: state.streamedReasoning,
-          isUser: false,
+          type: MessageType.bot,
           createdAt: DateTime.now(),
         );
 
@@ -241,9 +343,15 @@ class ChatCubit extends Cubit<ChatState> {
       });
       emit(state.copyWith(
           responseStreamSubscription: responseStreamSubscription));
-    } catch (e) {
+    } catch (e, stacktrace) {
       emit(state.copyWith(
-          errorMessage: 'Error: $e', isResponding: false, isStreaming: false));
+          errorMessage: 'SendToProvider: Error: $e',
+          isResponding: false,
+          isStreaming: false));
+      // print stack trace
+      if (kDebugMode) {
+        print(stacktrace);
+      }
     }
   }
 

@@ -9,9 +9,10 @@ class MessageCollection {
   Future<int> insertMessage(Message message) async {
     return db.insert('messages', {
       'chat_id': message.chatId,
+      'type': message.type.index,
       'text': message.text,
       'reasoning': message.reasoning,
-      'is_user': message.isUser ? 1 : 0,
+      'image_path': message.imagePath,
       'created_at': message.createdAt.toIso8601String(),
     });
   }

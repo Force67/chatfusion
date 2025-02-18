@@ -3,13 +3,13 @@ import 'package:sqflite/sqflite.dart';
 import 'dart:convert';
 
 class ChatCollection {
-  final Database database;
+  final Database db;
 
-  ChatCollection(this.database);
+  ChatCollection(this.db);
 
   Future<int> insertChat(Chat chat) async {
     try {
-      return await database.insert('chats', {
+      return await db.insert('chats', {
         'title': chat.title,
         'model_id': chat.modelId,
         'created_at': chat.createdAt.toIso8601String(),
@@ -21,9 +21,24 @@ class ChatCollection {
     }
   }
 
+  Future<bool> updateParams(int chatId, Map<String, dynamic> params) async {
+    try {
+      final result = await db.update(
+        'chats',
+        {'params': jsonEncode(params)},
+        where: 'id = ?',
+        whereArgs: [chatId],
+      );
+      return result > 0;
+    } catch (e) {
+      print('Error updating chat params: $e');
+      return false; // Or throw an exception
+    }
+  }
+
   Future<List<Chat>> getChats() async {
     try {
-      final maps = await database.query('chats', orderBy: 'created_at DESC');
+      final maps = await db.query('chats', orderBy: 'created_at DESC');
       return maps.map((map) => Chat.fromMap(map)).toList();
     } catch (e) {
       print('Error getting chats: $e');
@@ -33,7 +48,7 @@ class ChatCollection {
 
   Future<Chat> getChat(int chatId) async {
     try {
-      final maps = await database.query(
+      final maps = await db.query(
         'chats',
         where: 'id = ?',
         whereArgs: [chatId],
