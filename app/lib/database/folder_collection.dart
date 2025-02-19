@@ -64,12 +64,27 @@ class FolderCollection {
   }
 
   Future<void> removeChatFromFolder(int chatId, int folderId) async {
-    // TODO: move to Default if orphaned
-    await db.delete(
-      'folders_to_chats',
-      where: 'chat_id = ? AND folder_id = ?',
-      whereArgs: [chatId, folderId],
-    );
+    await db.transaction((txn) async {
+      // Remove from specified folder
+      await txn.delete(
+        'folders_to_chats',
+        where: 'chat_id = ? AND folder_id = ?',
+        whereArgs: [chatId, folderId],
+      );
+
+      // Check if the chat is now orphaned
+      final remainingConnections = await txn.query(
+        'folders_to_chats',
+        where: 'chat_id = ?',
+        whereArgs: [chatId],
+        limit: 1,
+      );
+
+      // If no remaining folder connections, assign to default folder 1
+      if (remainingConnections.isEmpty) {
+        addChatToFolder(chatId, 1, executor: txn);
+      }
+    });
   }
 
   Future<List<Chat>> getChatsInFolder(int folderId) async {
