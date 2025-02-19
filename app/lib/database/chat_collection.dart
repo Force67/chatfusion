@@ -8,10 +8,11 @@ class ChatCollection {
 
   ChatCollection(this.db);
 
-  Future<int> insertChat(Chat chat) async {
+  Future<int> insertChat(Chat chat, {int? folderId}) async {
     try {
       int chatId = -1;
       await db.transaction((txn) async {
+        // Insert the chat into the chats table
         chatId = await txn.insert('chats', {
           'title': chat.title,
           'model_id': chat.modelId,
@@ -19,9 +20,12 @@ class ChatCollection {
           'params': jsonEncode(chat.modelSettings),
         });
 
-        // Automatically assign to folder 1
-        FolderCollection folderCollection = FolderCollection(db);
-        await folderCollection.addChatToFolder(chatId, 1, executor: txn);
+        // If a folderId is provided, assign the chat to that folder
+        if (folderId != null) {
+          FolderCollection folderCollection = FolderCollection(db);
+          await folderCollection.addChatToFolder(chatId, folderId,
+              executor: txn);
+        }
       });
       return chatId;
     } catch (e) {
@@ -118,6 +122,39 @@ class ChatCollection {
     for (final chatId in chatIds) {
       final chatCollection = ChatCollection(db);
       await chatCollection.deleteChat(txn, chatId);
+    }
+  }
+
+  Future<Chat?> getLatestChat() async {
+    final List<Map<String, dynamic>> maps = await db.query(
+      'chats', // Replace with your actual table name
+      orderBy: 'created_at DESC', // Order by creation date in descending order
+      limit: 1, // Limit to the latest chat
+    );
+
+    if (maps.isNotEmpty) {
+      return Chat.fromMap(maps.first);
+    }
+    return null;
+  }
+
+  Future<bool> updateChat(Chat chat) async {
+    try {
+      final result = await db.update(
+        'chats',
+        {
+          'title': chat.title,
+          'model_id': chat.modelId,
+          'created_at': chat.createdAt.toIso8601String(),
+          'params': jsonEncode(chat.modelSettings),
+        },
+        where: 'id = ?',
+        whereArgs: [chat.id],
+      );
+      return result > 0;
+    } catch (e) {
+      print('Error updating chat: $e');
+      return false; // Or throw an exception
     }
   }
 }
