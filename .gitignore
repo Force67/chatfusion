@@ -3,7 +3,4 @@
 /app/android-sdk
 /android-sdk
 /app/android/app
-/app/linux
 /app/ios/Runner.xcodeproj
-/app/windows
-/app/macos
