@@ -35,6 +35,42 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
     _loadFolders();
   }
 
+  Future<void> _addFolder(BuildContext context) async {
+    final controller = TextEditingController();
+
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Add Folder'),
+        content: TextField(controller: controller),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final folderName = controller.text.trim();
+              if (folderName.isNotEmpty) {
+                final folderColl = await LocalDb.instance.folders;
+                final newFolder = Folder(
+                  id: null,
+                  name: folderName,
+                  createdAt: DateTime.now(),
+                  systemFolder: false,
+                );
+                await folderColl.insertFolder(newFolder);
+                await _loadFolders();
+                if (mounted) Navigator.pop(context);
+              }
+            },
+            child: const Text('Add'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _loadFolders() async {
     final folderColl = await LocalDb.instance.folders;
     _folders = await folderColl.getFolders();
@@ -281,6 +317,18 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                   }
                   setState(() {}); // Refresh the sidebar
                 },
+                style: IconButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                  padding: const EdgeInsets.all(12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              IconButton(
+                icon: const Icon(Icons.create_new_folder, size: 20),
+                onPressed: () => _addFolder(context),
                 style: IconButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.primary,
                   foregroundColor: Theme.of(context).colorScheme.onPrimary,
