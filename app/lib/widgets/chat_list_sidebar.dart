@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:monkeychat/database/chat_collection.dart';
+import 'package:monkeychat/utils/folder_dialogue.dart';
+import 'package:monkeychat/utils/folder_ui_service.dart';
+import 'package:monkeychat/widgets/folder_dropdown.dart';
 import '../database/local_db.dart';
 import '../models/chat.dart';
 import '../models/llm.dart';
@@ -12,7 +15,7 @@ class ChatListSidebar extends StatefulWidget {
   final Function() onDeleteAllChats;
   final Future<LLModel?> Function(String) getModelForChat;
 
-  ChatListSidebar({
+  const ChatListSidebar({
     super.key,
     required this.currentChatId,
     required this.onChatSelected,
@@ -28,6 +31,8 @@ class ChatListSidebar extends StatefulWidget {
 class _ChatListSidebarState extends State<ChatListSidebar> {
   List<Folder> _folders = [];
   int? _selectedFolderId;
+  final FolderService _folderService =
+      FolderService(LocalDb.instance); // Initialize FolderService
 
   @override
   void initState() {
@@ -35,57 +40,16 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
     _loadFolders();
   }
 
-  Future<void> _addFolder(BuildContext context) async {
-    final controller = TextEditingController();
-
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add Folder'),
-        content: TextField(controller: controller),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final folderName = controller.text.trim();
-              if (folderName.isNotEmpty) {
-                final folderColl = await LocalDb.instance.folders;
-                final newFolder = Folder(
-                  id: null,
-                  name: folderName,
-                  createdAt: DateTime.now(),
-                  systemFolder: false,
-                );
-                await folderColl.insertFolder(newFolder);
-                await _loadFolders();
-                if (mounted) Navigator.pop(context);
-              }
-            },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-  }
-
   Future<void> _loadFolders() async {
-    final folderColl = await LocalDb.instance.folders;
-    _folders = await folderColl.getFolders();
-
-    // Ensure a folder is always selected
+    _folders = await _folderService.loadFolders();
     if (_selectedFolderId == null ||
         !_folders.any((folder) => folder.id == _selectedFolderId)) {
-      // Default to folder with ID 1 if it exists
       final defaultFolder = _folders.firstWhere(
         (folder) => folder.id == 1,
-        orElse: () => _folders.first, // Fallback to the first folder
+        orElse: () => _folders.first,
       );
       _selectedFolderId = defaultFolder.id;
     }
-
     setState(() {});
   }
 
@@ -114,132 +78,6 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
     setState(() {
       _selectedFolderId = folderId;
     });
-  }
-
-  Future<void> _renameFolder(BuildContext context, Folder folder) async {
-    final controller = TextEditingController(text: folder.name);
-
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Rename Folder'),
-        content: TextField(controller: controller),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () async {
-              final newName = controller.text.trim();
-              if (newName.isNotEmpty) {
-                final updatedFolder = Folder(
-                  id: folder.id,
-                  name: newName,
-                  createdAt: folder.createdAt,
-                  systemFolder: false,
-                );
-                final folderColl = await LocalDb.instance.folders;
-                await folderColl.updateFolder(updatedFolder);
-                await _loadFolders();
-                if (mounted) Navigator.pop(context);
-              }
-            },
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _confirmDeleteFolder(BuildContext context, Folder folder) async {
-    await showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Folder?'),
-        content: const Text('This will only remove the folder, not the chats.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              // Close the dialog immediately after pressing "Delete"
-              Navigator.pop(context);
-
-              try {
-                final folderColl = await LocalDb.instance.folders;
-                await folderColl.deleteFolder(folder.id!);
-
-                // Reset _selectedFolderId if it matches the deleted folder's ID
-                if (_selectedFolderId == folder.id) {
-                  setState(() {
-                    _selectedFolderId = null;
-                  });
-                }
-
-                // Refresh the folders list
-                await _loadFolders();
-              } catch (e) {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Failed to delete folder: ${e.toString()}'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                }
-              }
-            },
-            child: const Text('Delete', style: TextStyle(color: Colors.red)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildFolderDropdown(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: DropdownButton<int>(
-            value: _selectedFolderId,
-            hint: const Text('Select Folder'),
-            isExpanded: true,
-            items: _folders.map((folder) {
-              return DropdownMenuItem<int>(
-                value: folder.id,
-                child: Text(folder.name),
-              );
-            }).toList(),
-            onChanged: _onFolderSelected,
-          ),
-        ),
-        IconButton(
-          icon: const Icon(Icons.edit),
-          onPressed: () {
-            if (_selectedFolderId != null) {
-              final folder = _folders.firstWhere(
-                (f) => f.id == _selectedFolderId,
-              );
-              _renameFolder(context, folder);
-            }
-          },
-        ),
-        IconButton(
-          icon: const Icon(Icons.delete),
-          onPressed: () {
-            if (_selectedFolderId != null) {
-              final folder = _folders.firstWhere(
-                (f) => f.id == _selectedFolderId,
-              );
-              _confirmDeleteFolder(context, folder);
-            }
-          },
-        ),
-      ],
-    );
   }
 
   @override
@@ -299,7 +137,10 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
           Row(
             children: [
               Expanded(
-                child: _buildFolderDropdown(context),
+                child: FolderDropdown(
+                  folderService: _folderService,
+                  onFolderSelected: _onFolderSelected,
+                ),
               ),
               const SizedBox(width: 8),
               IconButton(
@@ -328,7 +169,14 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
               ),
               IconButton(
                 icon: const Icon(Icons.create_new_folder, size: 20),
-                onPressed: () => _addFolder(context),
+                onPressed: () async {
+                  await FolderDialog.showAddFolderDialog(
+                    context,
+                    _folderService,
+                    _loadFolders, // Callback to refresh folders
+                    mounted, // Pass the mounted check
+                  );
+                },
                 style: IconButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.primary,
                   foregroundColor: Theme.of(context).colorScheme.onPrimary,
@@ -635,9 +483,8 @@ class _ChatListItemState extends State<_ChatListItem> {
     BuildContext context,
     List<Folder> allFolders,
     Set<int?> selectedFolderIds, {
-    required VoidCallback onFolderUpdated, // Add the callback parameter
+    required VoidCallback onFolderUpdated,
   }) async {
-    // Create a temporary copy of selected folder IDs for local state management
     final tempSelected = Set<int?>.from(selectedFolderIds);
 
     await showDialog(
