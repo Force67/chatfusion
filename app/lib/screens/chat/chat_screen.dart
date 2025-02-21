@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:monkeychat/models/folder.dart';
 import 'dart:async';
 import 'dart:io'; // Import for File
 
@@ -38,7 +39,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _showModelSelection(
-      BuildContext context, ChatCubit cubit) async {
+      BuildContext context, ChatCubit cubit, Folder folderId) async {
     showDialog(
       context: context,
       builder: (context) => ModelSelectionDialog(
@@ -46,7 +47,7 @@ class _ChatScreenState extends State<ChatScreen> {
         modelService: AIProviderOpenrouter(),
         onModelSelected: (model) {
           cubit.selectModel(model);
-          cubit.createNewChat();
+          cubit.createNewChat(folderId);
         },
       ),
     );
@@ -181,8 +182,10 @@ class _ChatScreenState extends State<ChatScreen> {
                         .initChat(chatId, model, chat.modelSettings ?? {});
                   }
                 },
-                onNewChat: () =>
-                    _showModelSelection(context, context.read<ChatCubit>()),
+                onNewChat: (folderId) async {
+                  _showModelSelection(
+                      context, context.read<ChatCubit>(), folderId);
+                },
                 onDeleteAllChats: () =>
                     context.read<ChatCubit>().deleteAllChats(),
                 getModelForChat: context.read<ChatCubit>().getModelForChat,

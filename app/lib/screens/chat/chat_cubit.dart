@@ -4,6 +4,7 @@ import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart';
 import 'package:monkeychat/database/local_db.dart';
 import 'package:monkeychat/models/chat.dart';
+import 'package:monkeychat/models/folder.dart';
 import 'package:monkeychat/models/message.dart';
 import 'package:monkeychat/services/ai_provider.dart';
 import 'package:monkeychat/models/llm.dart';
@@ -240,7 +241,7 @@ class ChatCubit extends Cubit<ChatState> {
     );
   }
 
-  Future<void> createNewChat() async {
+  Future<void> createNewChat(Folder? folder) async {
     if (state.selectedModel == null) return;
 
     // Initialize the model settings with the default values
@@ -253,6 +254,8 @@ class ChatCubit extends Cubit<ChatState> {
 
     final newChat = Chat(
       id: 0,
+      folderId: folder?.id ??
+          0, // set it to 0, and it will be attached to the "general" folder
       title: 'Chat with ${state.selectedModel!.name}',
       modelId: state.selectedModel!.id,
       createdAt: DateTime.now(),
@@ -324,8 +327,6 @@ class ChatCubit extends Cubit<ChatState> {
       emit(state.copyWith(errorMessage: 'Please select a model first'));
       return;
     }
-
-    print("whatsup???");
 
     // create a chat instance
     final msgs = await LocalDb.instance.messages;

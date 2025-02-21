@@ -1,4 +1,4 @@
-## Monkeychat
+## ChatFusion
 
 Pretty cool AI chat frontend for power users.
 
@@ -23,6 +23,10 @@ As someone who uses AI a lot, i wanted to have a frontend for chatting with LLMs
 
 ## Usage
 I recommend using openrouter. Simply request your api key and set in the app settings. Then you should be able to view the model list and begin chatting.
+
+## Development
+
+Just install flutter. Then run `flutter run` in the app directory of the project. If you have nixOS, you can just use `nix develop` to get my exact development environment.
 
 ### Linux
 

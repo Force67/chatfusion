@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:monkeychat/database/folder_collection.dart';
 import 'package:monkeychat/database/message_collection.dart';
+import 'package:monkeychat/models/folder.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/llm.dart';
@@ -33,16 +34,16 @@ class LocalDb {
     return _chatCollection!;
   }
 
-  Future<FolderCollection> get folders async {
-    final db = _cachedDb ?? await database;
-    _folderCollection ??= FolderCollection(db);
-    return _folderCollection!;
-  }
-
   Future<MessageCollection> get messages async {
     final db = _cachedDb ?? await database;
     _messageCollection ??= MessageCollection(db);
     return _messageCollection!;
+  }
+
+  Future<FolderCollection> get folders async {
+    final db = _cachedDb ?? await database;
+    _folderCollection ??= FolderCollection(db);
+    return _folderCollection!;
   }
 
   Future<Database> _initDatabase() async {
@@ -64,28 +65,20 @@ class LocalDb {
   }
 
   Future<void> _onCreate(Database db, int version) async {
+    // Parent_id is optional
     await db.execute('''
-    CREATE TABLE folders(
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      name TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    );
-  ''');
-
-    await db.execute('''
-    CREATE TABLE folders_to_chats(
-      folder_id INTEGER NOT NULL,
-      chat_id INTEGER NOT NULL,
-      created_at TEXT NOT NULL,
-      PRIMARY KEY (folder_id, chat_id),
-      FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE,
-      FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE
-    );
+      CREATE TABLE folders(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        parent_id INTEGER,
+        name TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
     ''');
 
     await db.execute('''
       CREATE TABLE chats(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        folder_id INTEGER NOT NULL,
         title TEXT NOT NULL,
         model_id TEXT NOT NULL,
         created_at TEXT NOT NULL,
@@ -124,6 +117,7 @@ class LocalDb {
       );
     ''');
 
+    // Models are cached for offline use based on the initial provided data
     await db.execute('''
       CREATE TABLE cached_models(
         model_id TEXT PRIMARY KEY,
@@ -131,15 +125,15 @@ class LocalDb {
         cached_at TEXT NOT NULL
       );
     ''');
+
     if (kDebugMode) {
-      print("CREATED THE DB");
+      print("Created database tables");
     }
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
     if (oldVersion < 3) {
       // Proper migration to version 3
-      await db.execute('DROP TABLE IF EXISTS folders_to_chats');
       await db.execute('DROP TABLE IF EXISTS folders');
 
       await db.execute('''
@@ -147,17 +141,6 @@ class LocalDb {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           name TEXT NOT NULL,
           created_at TEXT NOT NULL
-        );
-      ''');
-
-      await db.execute('''
-        CREATE TABLE folders_to_chats(
-          folder_id INTEGER NOT NULL,
-          chat_id INTEGER NOT NULL,
-          created_at TEXT NOT NULL,
-          PRIMARY KEY (folder_id, chat_id),
-          FOREIGN KEY (folder_id) REFERENCES folders(id) ON DELETE CASCADE,
-          FOREIGN KEY (chat_id) REFERENCES chats(id) ON DELETE CASCADE
         );
       ''');
     }
@@ -168,9 +151,6 @@ class LocalDb {
     //TODO: replace Placeholder boolean and actual implementation in GUI
     final db = await instance.database;
     await db.transaction((txn) async {
-      // 1. Crucially, remove all folder relationships first
-      await txn.delete('folders_to_chats');
-
       // 2. Delete all chats and messages
       await txn.delete('chats');
       await txn.delete('messages');
@@ -189,8 +169,6 @@ class LocalDb {
     await db.transaction((txn) async {
       await txn.delete('chats');
       await txn.delete('messages');
-      await txn
-          .delete('folders_to_chats'); // Crucial: remove folder relationships
     });
   }
 

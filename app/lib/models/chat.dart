@@ -2,6 +2,11 @@ import 'dart:convert';
 
 class Chat {
   final int id;
+
+  // A chat always belongs to a folder. If none is specified by the UI it gets added
+  // to the default folder (Id 0)
+  final int folderId;
+
   final String title;
   final String modelId;
   final DateTime createdAt;
@@ -13,6 +18,7 @@ class Chat {
 
   Chat({
     required this.id,
+    required this.folderId,
     required this.title,
     required this.modelId,
     required this.createdAt,
@@ -23,6 +29,7 @@ class Chat {
     try {
       return Chat(
         id: map['id'] as int,
+        folderId: map['folder_id'] as int,
         title: map['title'] as String,
         modelId: map['model_id'] as String,
         createdAt: DateTime.parse(map['created_at'] as String),
@@ -36,6 +43,7 @@ class Chat {
   Map<String, dynamic> toMap() {
     return {
       'id': id,
+      'folder_id': folderId,
       'title': title,
       'model_id': modelId,
       'created_at': createdAt.toIso8601String(),

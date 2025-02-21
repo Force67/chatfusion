@@ -7,7 +7,7 @@ import '../models/folder.dart';
 class ChatListSidebar extends StatefulWidget {
   final int? currentChatId;
   final Function(int) onChatSelected;
-  final Function() onNewChat;
+  final Function(Folder) onNewChat;
   final Function() onDeleteAllChats;
   final Future<LLModel?> Function(String) getModelForChat;
 
@@ -37,6 +37,11 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
   Future<void> _loadFolders() async {
     final folderColl = await LocalDb.instance.folders;
     _folders = await folderColl.getFolders();
+    for (final folder in _folders) {
+      if (folder.id != null) {
+        print("Folder: ${folder.id} ${folder.name}");
+      }
+    }
     setState(() {});
   }
 
@@ -86,11 +91,12 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                 final folderName = folderNameController.text.trim();
                 if (folderName.isNotEmpty) {
                   final newFolder = Folder(
+                    parentId: 0,
                     name: folderName,
                     createdAt: DateTime.now(),
                   );
                   final folderColl = await LocalDb.instance.folders;
-                  await folderColl.insertFolder(newFolder);
+                  await folderColl.add(newFolder);
                   await _loadFolders();
                   Navigator.of(context).pop();
                 }
@@ -121,6 +127,24 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _buildHeader(context),
+            Row(
+              children: [
+                SizedBox(
+                  width: 40,
+                  child: ListTile(
+                    leading: const Icon(Icons.create_new_folder),
+                    onTap: () => _createFolder(context),
+                  ),
+                ),
+                SizedBox(
+                  width: 40,
+                  child: ListTile(
+                    leading: const Icon(Icons.delete),
+                    onTap: () => _createFolder(context),
+                  ),
+                ),
+              ],
+            ),
             _buildFolderList(context),
             _buildChatList(context),
             const Divider(),
@@ -139,71 +163,64 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
         borderRadius: const BorderRadius.only(
           bottomRight: Radius.circular(16),
         ),
+        boxShadow: [
+          // Add a subtle shadow
+          BoxShadow(
+            color:
+                Colors.black.withOpacity(0.1), // Shadow color and transparency
+            spreadRadius: 2,
+            blurRadius: 6,
+            offset: const Offset(0, 3), // changes position of shadow
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const FlutterLogo(size: 32),
-              const SizedBox(width: 12),
-              Text(
-                'MonkeyChat',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              icon: const Icon(Icons.add, size: 20),
-              label: const Text('New Chat'),
-              onPressed: widget.onNewChat,
-              style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-          ),
-        ],
+        children: [],
       ),
     );
   }
 
   Widget _buildFolderList(BuildContext context) {
-    return ExpansionTile(
-      title: const Text('Folders'),
-      initiallyExpanded: true,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         ..._folders.map((folder) => ListTile(
               title: Text(folder.name),
               leading: _selectedFolderId == folder.id
                   ? const Icon(Icons.folder)
                   : const Icon(Icons.folder_open),
-              trailing: PopupMenuButton(
-                itemBuilder: (context) => [
-                  const PopupMenuItem(
-                    value: 'rename',
-                    child: Text('Rename'),
-                  ),
-                  const PopupMenuItem(
-                    value: 'delete',
-                    child: Text('Delete'),
+              trailing: Row(
+                // Wrap the existing PopupMenuButton and a SizedBox in a Row
+                mainAxisSize: MainAxisSize
+                    .min, // Important: Makes the Row take up only as much space as its children
+                children: [
+                  IconButton(
+                      onPressed: () {
+                        // Important: Wrap the call in a function
+                        widget.onNewChat(folder); // Call the function here
+                      },
+                      icon: const Icon(Icons.add)),
+                  PopupMenuButton(
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'rename',
+                        child: Text('Rename'),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Text('Delete'),
+                      ),
+                    ],
+                    onSelected: (value) async {
+                      if (value == 'rename') {
+                        _renameFolder(context, folder);
+                      } else if (value == 'delete') {
+                        _confirmDeleteFolder(context, folder);
+                      }
+                    },
                   ),
                 ],
-                onSelected: (value) async {
-                  if (value == 'rename') {
-                    _renameFolder(context, folder);
-                  } else if (value == 'delete') {
-                    _confirmDeleteFolder(context, folder);
-                  }
-                },
               ),
               onTap: () {
                 setState(() {
@@ -212,11 +229,6 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                 });
               },
             )),
-        ListTile(
-          leading: const Icon(Icons.create_new_folder),
-          title: const Text('New folder'),
-          onTap: () => _createFolder(context),
-        ),
       ],
     );
   }
@@ -238,12 +250,13 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
               final newName = controller.text.trim();
               if (newName.isNotEmpty) {
                 final updatedFolder = Folder(
+                  parentId: 0,
                   id: folder.id,
                   name: newName,
                   createdAt: folder.createdAt,
                 );
                 final folderColl = await LocalDb.instance.folders;
-                await folderColl.updateFolder(updatedFolder);
+                await folderColl.update(updatedFolder);
                 await _loadFolders();
                 if (mounted) Navigator.pop(context);
               }

@@ -11,6 +11,7 @@ class ChatCollection {
     try {
       return await db.insert('chats', {
         'title': chat.title,
+        'folder_id': chat.folderId,
         'model_id': chat.modelId,
         'created_at': chat.createdAt.toIso8601String(),
         'params': jsonEncode(chat.modelSettings),
