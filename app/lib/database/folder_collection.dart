@@ -12,6 +12,7 @@ class FolderCollection {
     final id = await db.insert('folders', {
       'name': f.name,
       'parent_id': f.parentId, // passing "null" is fine, nullable column
+      'color_code': f.hexColorCode,
       'created_at': f.createdAt.toIso8601String(),
     });
 

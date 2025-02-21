@@ -40,6 +40,8 @@ dependencies:
 
   bloc: any
   uuid: any
+  flutter_colorpicker:
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

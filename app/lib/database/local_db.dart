@@ -71,6 +71,7 @@ class LocalDb {
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         parent_id INTEGER,
         name TEXT NOT NULL,
+        color_code TEXT NOT NULL, -- Hex color code
         created_at TEXT NOT NULL
       );
     ''');

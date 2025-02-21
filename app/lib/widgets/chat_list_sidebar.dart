@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import '../database/local_db.dart';
 import '../models/chat.dart';
 import '../models/llm.dart';
@@ -70,17 +71,42 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
     return chats;
   }
 
+  String _hexColorCodeFromColor(Color c) {
+    return '#${c.value.toRadixString(16).substring(2)}';
+  }
+
   Future<void> _createFolder(BuildContext context) async {
     final TextEditingController folderNameController = TextEditingController();
+    Color selectedColor = Colors.blue;
 
     await showDialog(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Create New Folder'),
-          content: TextField(
-            controller: folderNameController,
-            decoration: const InputDecoration(hintText: 'Folder Name'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: folderNameController,
+                decoration: const InputDecoration(hintText: 'Folder Name'),
+              ),
+              ColorPicker(
+                pickerColor: selectedColor,
+                onColorChanged: (color) {
+                  selectedColor = color;
+                },
+                pickerAreaHeightPercent: 0.7,
+                enableAlpha: false,
+                displayThumbColor: true,
+                showLabel: false,
+                paletteType: PaletteType.hueWheel,
+                pickerAreaBorderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(2),
+                  topRight: Radius.circular(2),
+                ),
+              ),
+            ],
           ),
           actions: <Widget>[
             TextButton(
@@ -96,6 +122,7 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                   final newFolder = Folder(
                     parentId: 0,
                     name: folderName,
+                    hexColorCode: _hexColorCodeFromColor(selectedColor),
                     createdAt: DateTime.now(),
                   );
                   final folderColl = await LocalDb.instance.folders;
@@ -286,6 +313,7 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                   parentId: 0,
                   id: folder.id,
                   name: newName,
+                  hexColorCode: folder.hexColorCode,
                   createdAt: folder.createdAt,
                 );
                 final folderColl = await LocalDb.instance.folders;
