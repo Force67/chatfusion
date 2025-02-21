@@ -16,6 +16,7 @@ class ChatState {
   final StreamSubscription? responseStreamSubscription;
   final String? errorMessage;
   final bool chatsDeleted;
+  final bool isThinking;
 
   ChatState({
     this.currentChatId = -1,
@@ -31,6 +32,7 @@ class ChatState {
     this.responseStreamSubscription,
     this.errorMessage,
     this.chatsDeleted = false,
+    this.isThinking = false,
   });
 
   factory ChatState.initial() => ChatState(
@@ -44,6 +46,7 @@ class ChatState {
         selectedAttachmentPaths: [],
         isResponding: false,
         isStreaming: false,
+        isThinking: false,
       );
 
   ChatState copyWith({
@@ -60,6 +63,7 @@ class ChatState {
     StreamSubscription? responseStreamSubscription,
     String? errorMessage,
     bool? chatsDeleted,
+    bool? isThinking,
   }) {
     return ChatState(
       currentChatId: currentChatId ?? this.currentChatId,
@@ -77,6 +81,7 @@ class ChatState {
           responseStreamSubscription ?? this.responseStreamSubscription,
       errorMessage: errorMessage,
       chatsDeleted: chatsDeleted ?? this.chatsDeleted,
+      isThinking: isThinking ?? this.isThinking,
     );
   }
 }

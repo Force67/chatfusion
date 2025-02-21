@@ -250,9 +250,9 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
             children: [
               ListTile(
                 title: Text(folder.name),
-                leading: isExpanded
-                    ? const Icon(Icons.folder_open)
-                    : const Icon(Icons.folder),
+                leading: Icon(isExpanded ? Icons.folder_open : Icons.folder,
+                    color:
+                        _getFolderIconColor(folder)), // Use custom icon color
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -315,6 +315,24 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
     );
   }
 
+  Color _getFolderIconColor(Folder folder) {
+    if (folder.hexColorCode != null &&
+        folder.hexColorCode!.length == 7 &&
+        folder.hexColorCode![0] == '#') {
+      try {
+        return Color(
+            int.parse(folder.hexColorCode!.substring(1, 7), radix: 16) +
+                0xFF000000);
+      } catch (e) {
+        // Handle parsing errors, return a default color
+        return Colors.grey;
+      }
+    } else {
+      // Return a default color if hex code is invalid
+      return Colors.grey;
+    }
+  }
+
   Widget _buildSubfolderList(BuildContext context, int parentFolderId) {
     List<Folder> subfolders =
         _folders.where((folder) => folder.parentId == parentFolderId).toList();
@@ -349,9 +367,9 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
             children: [
               ListTile(
                 title: Text(folder.name),
-                leading: isExpanded
-                    ? const Icon(Icons.folder_open)
-                    : const Icon(Icons.folder),
+                leading: Icon(isExpanded ? Icons.folder_open : Icons.folder,
+                    color:
+                        _getFolderIconColor(folder)), // Use custom icon color
                 trailing: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
@@ -592,24 +610,6 @@ class _ChatListItemState extends State<_ChatListItem> {
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          /*decoration: BoxDecoration( // Remove the gradient from chat items
-
-            gradient: LinearGradient(
-              colors: [
-                _startColor.withOpacity(widget.isSelected
-                    ? 0.4
-                    : 0.2), // Adjust opacity based on selection
-                _endColor.withOpacity(widget.isSelected ? 0.4 : 0.2),
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-
-            borderRadius: BorderRadius.circular(12),
-            border: widget.isSelected
-                ? Border.all(color: Theme.of(context).colorScheme.primary)
-                : null,
-          ),*/
           child: Row(
             children: [
               Expanded(

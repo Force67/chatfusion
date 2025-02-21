@@ -20,6 +20,7 @@ import 'package:monkeychat/widgets/model_settings_sidebar.dart';
 import 'chat_cubit.dart';
 import 'chat_state.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:loading_animation_widget/loading_animation_widget.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -87,39 +88,53 @@ class _ChatScreenState extends State<ChatScreen> {
           child: Column(
             children: [
               Expanded(
-                child: ListView.builder(
-                  reverse: true,
-                  itemCount: messages.length + (state.isResponding ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    // Adjustments for streaming message
-                    if (state.isResponding && index == 0) {
-                      return ChatMessage(
-                        text: state.streamedResponse,
-                        isUser: false,
-                        isStreaming: true,
-                        reasoning: state.streamedReasoning,
-                      );
-                    }
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    ListView.builder(
+                      reverse: true,
+                      itemCount: messages.length + (state.isResponding ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        // Adjustments for streaming message
+                        if (state.isResponding && index == 0) {
+                          return ChatMessage(
+                            text: state.streamedResponse,
+                            isUser: false,
+                            isStreaming: true,
+                            reasoning: state.streamedReasoning,
+                          );
+                        }
 
-                    final messageIndex = state.isResponding ? index - 1 : index;
-                    final message = messages.reversed.toList()[messageIndex];
+                        final messageIndex =
+                            state.isResponding ? index - 1 : index;
+                        final message =
+                            messages.reversed.toList()[messageIndex];
 
-                    // Render differently based on message type
-                    if (message.isSystem()) {
-                      return _buildSystemMessage(
-                          message.text); //call new build system message
-                    } else {
-                      return ChatMessage(
-                        text: message.text,
-                        reasoning: message.reasoning,
-                        isUser: message.isUser(),
-                        isStreaming: false,
-                        attachments: message.attachments,
-                        onRetry: () =>
-                            context.read<ChatCubit>().retryMessage(message),
-                      );
-                    }
-                  },
+                        // Render differently based on message type
+                        if (message.isSystem()) {
+                          return _buildSystemMessage(
+                              message.text); //call new build system message
+                        } else {
+                          return ChatMessage(
+                            text: message.text,
+                            reasoning: message.reasoning,
+                            isUser: message.isUser(),
+                            isStreaming: false,
+                            attachments: message.attachments,
+                            onRetry: () =>
+                                context.read<ChatCubit>().retryMessage(message),
+                          );
+                        }
+                      },
+                    ),
+                    // Add loading animation when isThinking is true and no messages or is a new chat
+                    if (state.isThinking &&
+                        (messages.isEmpty || state.isNewChat))
+                      LoadingAnimationWidget.discreteCircle(
+                        color: Colors.blue,
+                        size: 40,
+                      ),
+                  ],
                 ),
               ),
               _Input(textController: _textController),
@@ -348,10 +363,10 @@ class _Input extends StatelessWidget {
                         contentPadding:
                             const EdgeInsets.symmetric(horizontal: 20.0),
                       ),
-                      onSubmitted: (text) => context
-                          .read<ChatCubit>()
-                          .sendMessage(text,
-                              state.selectedAttachmentPaths), //send the list
+                      onSubmitted: (text) => {
+                        context.read<ChatCubit>().sendMessage(text,
+                            state.selectedAttachmentPaths), //send the list
+                      },
                     ),
                   ),
                   IconButton(
@@ -363,9 +378,14 @@ class _Input extends StatelessWidget {
                         state.isStreaming ? "Stop generating" : "Send message",
                     onPressed: state.isStreaming
                         ? () => context.read<ChatCubit>().stopGenerating()
-                        : () => context.read<ChatCubit>().sendMessage(
-                            _textController.text,
-                            state.selectedAttachmentPaths), //send the list
+                        : () => {
+                              context.read<ChatCubit>().sendMessage(
+                                  _textController.text,
+                                  state.selectedAttachmentPaths),
+                              _textController.clear()
+                            }
+                    //send the list
+                    ,
                   ),
                 ],
               ),

@@ -29,6 +29,7 @@ class ChatCubit extends Cubit<ChatState> {
           selectedAttachmentPaths: [],
           selectedModel: null,
           modelSettings: {},
+          isThinking: false, // Initialize isThinking to false
         )) {
     _loadLastChat();
   }
@@ -41,10 +42,13 @@ class ChatCubit extends Cubit<ChatState> {
       selectedModel: selectedModel,
       modelSettings: modelSettings,
       selectedAttachmentPaths: [],
+      isThinking: false, // Stop thinking when chat is initialized
     ));
   }
 
   Future<void> _loadLastChat() async {
+    emit(state.copyWith(isThinking: true)); // Start thinking
+
     try {
       final chatsCollection = await LocalDb.instance.chats;
       final lastChat = await chatsCollection.getLastChat();
@@ -56,10 +60,16 @@ class ChatCubit extends Cubit<ChatState> {
             model,
             lastChat.modelSettings ?? {},
           );
+        } else {
+          emit(state.copyWith(isThinking: false));
         }
+      } else {
+        emit(state.copyWith(isThinking: false)); // Stop thinking
       }
     } catch (e) {
-      emit(state.copyWith(errorMessage: 'Failed to load last chat: $e'));
+      emit(state.copyWith(
+          errorMessage: 'Failed to load last chat: $e',
+          isThinking: false)); // Stop thinking on error
     }
   }
 
@@ -125,6 +135,9 @@ class ChatCubit extends Cubit<ChatState> {
       return; // early exist
     }
 
+    //Emit Thinking
+    emit(state.copyWith(isThinking: true));
+
     // Create and add the system message.
     await _addSystemMessage("Params updated: $settingsChanges");
 
@@ -133,7 +146,7 @@ class ChatCubit extends Cubit<ChatState> {
     final chatId = state.currentChatId;
 
     chats.updateParams(chatId, newParams);
-    emit(state.copyWith(modelSettings: newParams));
+    emit(state.copyWith(modelSettings: newParams, isThinking: false));
   }
 
   Future<void> _addSystemMessage(String messageText) async {
@@ -163,6 +176,8 @@ class ChatCubit extends Cubit<ChatState> {
     }
 
     if (text.trim().isEmpty) return;
+
+    emit(state.copyWith(isThinking: true)); // Start thinking BEFORE sending
 
     List<File> attachmentFiles = [];
     // Create File objects from the selected paths
@@ -194,7 +209,9 @@ class ChatCubit extends Cubit<ChatState> {
         insertUserMessage: false, // Already inserted
       );
     } catch (e) {
-      emit(state.copyWith(errorMessage: 'Failed to send message: $e'));
+      emit(state.copyWith(
+          errorMessage: 'Failed to send message: $e',
+          isThinking: false)); // Stop thinking on error
     } finally {
       emit(state.copyWith(selectedAttachmentPaths: []));
     }
@@ -208,7 +225,10 @@ class ChatCubit extends Cubit<ChatState> {
 
   void stopGenerating() {
     state.responseStreamSubscription?.cancel();
-    emit(state.copyWith(isResponding: false, isStreaming: false));
+    emit(state.copyWith(
+        isResponding: false,
+        isStreaming: false,
+        isThinking: false)); // Clear any prior thinking state
   }
 
   void clearContext() {
@@ -224,6 +244,8 @@ class ChatCubit extends Cubit<ChatState> {
         messages.indexWhere((m) => m.id == messageToRetry.id - 1 && m.isUser());
 
     if (userMessageIndex == -1) return;
+
+    emit(state.copyWith(isThinking: true)); // Start thinking
 
     // Delete ONLY the target AI message
     await msgs.deleteMessage(messageToRetry.id);
@@ -244,6 +266,7 @@ class ChatCubit extends Cubit<ChatState> {
   Future<void> createNewChat(Folder? folder) async {
     if (state.selectedModel == null) return;
 
+    emit(state.copyWith(isThinking: true)); // Start thinking
     // Initialize the model settings with the default values
     // But only for parameters that are actually available to modify (as provided by the API)
     // The default values
@@ -264,16 +287,22 @@ class ChatCubit extends Cubit<ChatState> {
 
     final chats = await LocalDb.instance.chats;
     final chatId = await chats.insertChat(newChat);
-    emit(state.copyWith(currentChatId: chatId, isNewChat: false));
+    emit(state.copyWith(
+        currentChatId: chatId,
+        isNewChat: false,
+        isThinking: false)); // Clear thinking when new cat is created
   }
 
   Future<void> deleteAllChats() async {
+    emit(state.copyWith(isThinking: true)); // Start thinking
     try {
       await LocalDb.instance.clearChats();
-      emit(state.copyWith(chatsDeleted: true)); // Flag for UI refresh
+      emit(state.copyWith(
+          chatsDeleted: true, isThinking: false)); // Flag for UI refresh
       emit(state.copyWith(chatsDeleted: false)); // Reset the flag
     } catch (e) {
-      emit(state.copyWith(errorMessage: 'Failed to delete chats: $e'));
+      emit(state.copyWith(
+          errorMessage: 'Failed to delete chats: $e', isThinking: false));
     }
   }
 
@@ -334,7 +363,10 @@ class ChatCubit extends Cubit<ChatState> {
         isResponding: true,
         isStreaming: true,
         streamedResponse: '',
-        streamedReasoning: ''));
+        streamedReasoning: '',
+        isThinking: false // Model has started responding, stop thinking
+
+        ));
 
     try {
       if (insertUserMessage) {
@@ -388,6 +420,7 @@ class ChatCubit extends Cubit<ChatState> {
         emit(state.copyWith(
           isResponding: false,
           isStreaming: false,
+          isThinking: false, // Stop thinking on error
           errorMessage: 'Error: $e',
         ));
       });
@@ -397,7 +430,10 @@ class ChatCubit extends Cubit<ChatState> {
       emit(state.copyWith(
           errorMessage: 'SendToProvider: Error: $e',
           isResponding: false,
-          isStreaming: false));
+          isStreaming: false,
+          isThinking: false // Stop thinking on (less common) synchronous error
+
+          ));
       // print stack trace
       if (kDebugMode) {
         print(stacktrace);

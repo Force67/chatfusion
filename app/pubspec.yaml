@@ -41,6 +41,7 @@ dependencies:
   bloc: any
   uuid: any
   flutter_colorpicker:
+  loading_animation_widget:
 
 dev_dependencies:
   flutter_test:
