@@ -1,3 +1,6 @@
+import 'dart:math';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import '../database/local_db.dart';
 import '../models/chat.dart';
@@ -27,6 +30,7 @@ class ChatListSidebar extends StatefulWidget {
 class _ChatListSidebarState extends State<ChatListSidebar> {
   List<Folder> _folders = [];
   int? _selectedFolderId;
+  Map<int?, bool> _folderExpandedState = {}; // Track expanded state of folders
 
   @override
   void initState() {
@@ -39,31 +43,31 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
     _folders = await folderColl.getFolders();
     for (final folder in _folders) {
       if (folder.id != null) {
-        print("Folder: ${folder.id} ${folder.name}");
+        if (kDebugMode) {
+          print("Folder: ${folder.id} ${folder.name}");
+        }
+        _folderExpandedState[folder.id] =
+            false; // Initially, all folders are collapsed.
       }
     }
     setState(() {});
   }
 
-  Future<List<Chat>> _loadChats() async {
+  Future<List<Chat>> _loadChatsInFolder(int folderId) async {
     final db = LocalDb.instance;
     final chatscol = await db.chats;
     final folderColl = await db.folders;
 
-    if (_selectedFolderId != null) {
-      final chatIds = await folderColl.getChatsInFolder(_selectedFolderId!);
-      if (chatIds.isEmpty) {
-        return <Chat>[];
-      }
-      List<Chat> chats = [];
-      for (final chat in chatIds) {
-        final cht = await chatscol.getChat(chat.id);
-        chats.add(cht);
-      }
-      return chats;
-    } else {
-      return await chatscol.getChats();
+    final chatIds = await folderColl.getChatsInFolder(folderId);
+    if (chatIds.isEmpty) {
+      return <Chat>[];
     }
+    List<Chat> chats = [];
+    for (final chat in chatIds) {
+      final cht = await chatscol.getChat(chat.id);
+      chats.add(cht);
+    }
+    return chats;
   }
 
   Future<void> _createFolder(BuildContext context) async {
@@ -80,13 +84,12 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
           ),
           actions: <Widget>[
             TextButton(
-              child: const Text('Cancel'),
               onPressed: () {
                 Navigator.of(context).pop();
               },
+              child: const Text('Cancel'),
             ),
             TextButton(
-              child: const Text('Create'),
               onPressed: () async {
                 final folderName = folderNameController.text.trim();
                 if (folderName.isNotEmpty) {
@@ -98,9 +101,10 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                   final folderColl = await LocalDb.instance.folders;
                   await folderColl.add(newFolder);
                   await _loadFolders();
-                  Navigator.of(context).pop();
+                  if (mounted) Navigator.of(context).pop();
                 }
               },
+              child: const Text('Create'),
             ),
           ],
         );
@@ -131,24 +135,29 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
               children: [
                 SizedBox(
                   width: 40,
-                  child: ListTile(
-                    leading: const Icon(Icons.create_new_folder),
-                    onTap: () => _createFolder(context),
+                  child: IconButton(
+                    icon: const Icon(Icons.create_new_folder),
+                    onPressed: () => _createFolder(context),
                   ),
                 ),
                 SizedBox(
                   width: 40,
-                  child: ListTile(
-                    leading: const Icon(Icons.delete),
-                    onTap: () => _createFolder(context),
+                  child: IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: () => _createFolder(context),
                   ),
                 ),
               ],
             ),
-            _buildFolderList(context),
-            _buildChatList(context),
-            const Divider(),
-            _buildDeleteButton(context),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  children: [
+                    _buildFolderList(context),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -184,52 +193,76 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
   Widget _buildFolderList(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ..._folders.map((folder) => ListTile(
-              title: Text(folder.name),
-              leading: _selectedFolderId == folder.id
-                  ? const Icon(Icons.folder)
-                  : const Icon(Icons.folder_open),
-              trailing: Row(
-                // Wrap the existing PopupMenuButton and a SizedBox in a Row
-                mainAxisSize: MainAxisSize
-                    .min, // Important: Makes the Row take up only as much space as its children
-                children: [
-                  IconButton(
-                      onPressed: () {
-                        // Important: Wrap the call in a function
-                        widget.onNewChat(folder); // Call the function here
+      children: _folders.map((folder) {
+        final isExpanded = _folderExpandedState[folder.id] ?? false;
+        return Container(
+          // Added Container with BoxDecoration
+          decoration: BoxDecoration(
+            border: Border.all(
+              color: Colors.grey.shade300, // Light grey border
+              width: 1,
+            ),
+            borderRadius: BorderRadius.circular(8), // Optional: Rounded corners
+          ),
+          margin: const EdgeInsets.symmetric(
+              vertical: 2, horizontal: 4), // added margin for spacing
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ListTile(
+                title: Text(folder.name),
+                leading: isExpanded
+                    ? const Icon(Icons.folder_open)
+                    : const Icon(Icons.folder),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                        onPressed: () {
+                          if (kDebugMode) {
+                            print('New chat in folder ${folder.id}');
+                          }
+                          widget.onNewChat(folder);
+                        },
+                        icon: const Icon(Icons.add)),
+                    PopupMenuButton(
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'rename',
+                          child: Text('Rename'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Text('Delete'),
+                        ),
+                      ],
+                      onSelected: (value) async {
+                        if (value == 'rename') {
+                          _renameFolder(context, folder);
+                        } else if (value == 'delete') {
+                          _confirmDeleteFolder(context, folder);
+                        }
                       },
-                      icon: const Icon(Icons.add)),
-                  PopupMenuButton(
-                    itemBuilder: (context) => [
-                      const PopupMenuItem(
-                        value: 'rename',
-                        child: Text('Rename'),
-                      ),
-                      const PopupMenuItem(
-                        value: 'delete',
-                        child: Text('Delete'),
-                      ),
-                    ],
-                    onSelected: (value) async {
-                      if (value == 'rename') {
-                        _renameFolder(context, folder);
-                      } else if (value == 'delete') {
-                        _confirmDeleteFolder(context, folder);
-                      }
-                    },
-                  ),
-                ],
+                    ),
+                  ],
+                ),
+                onTap: () {
+                  setState(() {
+                    //  _selectedFolderId =
+                    //     _selectedFolderId == folder.id ? null : folder.id;
+                    _folderExpandedState[folder.id] = !isExpanded;
+                  });
+                },
               ),
-              onTap: () {
-                setState(() {
-                  _selectedFolderId =
-                      _selectedFolderId == folder.id ? null : folder.id;
-                });
-              },
-            )),
-      ],
+              if (isExpanded)
+                Padding(
+                  padding: const EdgeInsets.only(left: 16.0),
+                  child: _buildChatList(context, folder.id!),
+                ),
+            ],
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -293,56 +326,53 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
     );
   }
 
-  Widget _buildChatList(BuildContext context) {
-    return Expanded(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-        child: FutureBuilder<List<Chat>>(
-          future: _loadChats(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(child: CircularProgressIndicator());
-            }
+  Widget _buildChatList(BuildContext context, int folderId) {
+    return FutureBuilder<List<Chat>>(
+      future: _loadChatsInFolder(folderId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-            final chats = snapshot.data ?? [];
-            if (chats.isEmpty) {
-              return Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Text(
-                  'No chats yet\nStart a new conversation!',
-                  textAlign: TextAlign.center,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: Theme.of(context)
-                            .colorScheme
-                            .onSurface
-                            .withOpacity(0.6),
-                      ),
-                ),
-              );
-            }
+        final chats = snapshot.data ?? [];
+        if (chats.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'No chats yet\nStart a new conversation!',
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .onSurface
+                        .withOpacity(0.6),
+                  ),
+            ),
+          );
+        }
 
-            return Material(
-              color: Colors.transparent,
-              child: ListView.separated(
-                padding: const EdgeInsets.only(top: 16),
-                itemCount: chats.length,
-                separatorBuilder: (_, __) =>
-                    const Divider(height: 1, indent: 16),
-                itemBuilder: (context, index) => _ChatListItem(
-                  chat: chats[index],
-                  isSelected: widget.currentChatId == chats[index].id,
-                  onTap: () => widget.onChatSelected(chats[index].id),
-                  getModelForChat: widget.getModelForChat,
-                  folderId: _selectedFolderId,
-                  onFolderUpdated: () {
-                    setState(() {}); // Refresh sidebar after folder change
-                  },
-                ),
-              ),
-            );
-          },
-        ),
-      ),
+        return Material(
+          color: Colors.transparent,
+          child: ListView.separated(
+            shrinkWrap: true, // Important for nesting in Column
+            physics:
+                const NeverScrollableScrollPhysics(), // Disable list's own scrolling
+            padding: const EdgeInsets.only(top: 16),
+            itemCount: chats.length,
+            separatorBuilder: (_, __) => const Divider(height: 1, indent: 16),
+            itemBuilder: (context, index) => _ChatListItem(
+              chat: chats[index],
+              isSelected: widget.currentChatId == chats[index].id,
+              onTap: () => widget.onChatSelected(chats[index].id),
+              getModelForChat: widget.getModelForChat,
+              folderId: folderId,
+              onFolderUpdated: () {
+                setState(() {}); // Refresh sidebar after folder change
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -410,18 +440,32 @@ class _ChatListItem extends StatefulWidget {
 }
 
 class _ChatListItemState extends State<_ChatListItem> {
+  // Generate a random color gradient for each chat item
+  final Color _startColor =
+      Colors.primaries[Random().nextInt(Colors.primaries.length)].shade100;
+  final Color _endColor =
+      Colors.primaries[Random().nextInt(Colors.primaries.length)].shade50;
+
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: widget.isSelected
-          ? Theme.of(context).colorScheme.primary.withOpacity(0.1)
-          : Colors.transparent,
+      color: Colors.transparent,
       child: InkWell(
         onTap: widget.onTap,
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
           decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                _startColor.withOpacity(widget.isSelected
+                    ? 0.4
+                    : 0.2), // Adjust opacity based on selection
+                _endColor.withOpacity(widget.isSelected ? 0.4 : 0.2),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
             borderRadius: BorderRadius.circular(12),
             border: widget.isSelected
                 ? Border.all(color: Theme.of(context).colorScheme.primary)
@@ -429,9 +473,6 @@ class _ChatListItemState extends State<_ChatListItem> {
           ),
           child: Row(
             children: [
-              Icon(Icons.forum_outlined,
-                  color: Theme.of(context).colorScheme.primary),
-              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -461,7 +502,7 @@ class _ChatListItemState extends State<_ChatListItem> {
                   ],
                 ),
               ),
-              _buildFolderAssignment(context),
+              //_buildFolderAssignment(context),
             ],
           ),
         ),
