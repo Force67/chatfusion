@@ -28,7 +28,9 @@ class ChatCubit extends Cubit<ChatState> {
           selectedAttachmentPaths: [],
           selectedModel: null,
           modelSettings: {},
-        )); // Initialize with empty list
+        )) {
+    _loadLastChat();
+  }
 
   Future<void> initChat(int chatId, LLModel selectedModel,
       Map<String, dynamic> modelSettings) async {
@@ -39,6 +41,25 @@ class ChatCubit extends Cubit<ChatState> {
       modelSettings: modelSettings,
       selectedAttachmentPaths: [],
     ));
+  }
+
+  Future<void> _loadLastChat() async {
+    try {
+      final chatsCollection = await LocalDb.instance.chats;
+      final lastChat = await chatsCollection.getLastChat();
+      if (lastChat != null) {
+        final model = await getModelForChat(lastChat.modelId);
+        if (model != null) {
+          await initChat(
+            lastChat.id,
+            model,
+            lastChat.modelSettings ?? {},
+          );
+        }
+      }
+    } catch (e) {
+      emit(state.copyWith(errorMessage: 'Failed to load last chat: $e'));
+    }
   }
 
   void selectModel(LLModel model) {

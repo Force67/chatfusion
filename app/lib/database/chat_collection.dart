@@ -59,4 +59,14 @@ class ChatCollection {
       rethrow;
     }
   }
+
+  Future<Chat?> getLastChat() async {
+    try {
+      final maps =
+          await db.query('chats', orderBy: 'created_at DESC', limit: 1);
+      return Chat.fromMap(maps.first);
+    } catch (e) {
+      return null;
+    }
+  }
 }
