@@ -42,6 +42,7 @@ dependencies:
   uuid: any
   flutter_colorpicker:
   loading_animation_widget:
+  google_fonts:
 
 dev_dependencies:
   flutter_test:

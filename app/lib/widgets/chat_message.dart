@@ -1,9 +1,75 @@
 import 'dart:io';
-import 'dart:convert'; // Import for Base64 decoding
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:latext/latext.dart';
 import 'package:flutter/services.dart';
 import 'package:monkeychat/models/message.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:flutter/widgets.dart';
+import 'package:markdown/markdown.dart' as md;
+
+// Custom Renderer for handling LaTeX placeholders
+class LatexRenderer extends MarkdownElementBuilder {
+  final Map<String, String> latexPlaceholders;
+
+  LatexRenderer({required this.latexPlaceholders});
+
+  @override
+  Widget visitText(md.Text text, TextStyle? style) {
+    String content = text.text ?? '';
+    List<Widget> inlineWidgets = [];
+    List<String> placeholders = latexPlaceholders.keys.toList();
+
+    if (placeholders.isEmpty) {
+      return Text(content, style: style);
+    }
+
+    // Create regex pattern to match all placeholders
+    String pattern = placeholders.map((p) => RegExp.escape(p)).join('|');
+    RegExp regex = RegExp(pattern);
+
+    List<String> parts = [];
+    int lastIndex = 0;
+
+    // Split content into parts using placeholders
+    for (var match in regex.allMatches(content)) {
+      if (match.start > lastIndex) {
+        parts.add(content.substring(lastIndex, match.start));
+      }
+      parts.add(match.group(0)!);
+      lastIndex = match.end;
+    }
+
+    if (lastIndex < content.length) {
+      parts.add(content.substring(lastIndex));
+    }
+
+    // Build widgets for each part
+    for (String part in parts) {
+      if (latexPlaceholders.containsKey(part)) {
+        String latex = latexPlaceholders[part]!;
+        inlineWidgets.add(Container(
+          padding: const EdgeInsets.symmetric(vertical: 2),
+          child: Math.tex(
+            latex,
+            mathStyle: MathStyle.display,
+            textStyle: style?.copyWith(
+              fontFamily: 'MathJax',
+              fontSize: 14,
+            ),
+            onErrorFallback: (error) => Text(error.message, style: style),
+          ),
+        ));
+      } else {
+        inlineWidgets.add(Text(part, style: style));
+      }
+    }
+
+    return Wrap(children: inlineWidgets);
+  }
+}
 
 class ChatMessage extends StatefulWidget {
   final String text;
@@ -29,11 +95,11 @@ class ChatMessage extends StatefulWidget {
 
 class _ChatMessageState extends State<ChatMessage> {
   late bool _showReasoning;
+  final Map<String, String> _latexPlaceholders = {};
 
   @override
   void initState() {
     super.initState();
-    // Show reasoning during streaming, collapse when finalized
     _showReasoning = widget.isStreaming && widget.reasoning?.isNotEmpty == true;
   }
 
@@ -41,36 +107,31 @@ class _ChatMessageState extends State<ChatMessage> {
     if (attachment.mimeType.startsWith('image/')) {
       Widget imageWidget;
       if (attachment.isFilePath) {
-        // Load image from file path
         imageWidget = Image.file(File(attachment.data));
       } else {
-        // Decode Base64 image data
         try {
           final decodedBytes = base64Decode(attachment.data);
           imageWidget = Image.memory(decodedBytes);
         } catch (e) {
           print("Error decoding base64 image: $e");
-          return const Text(
-              "Error displaying image"); // Handle potential errors
+          return const Text("Error displaying image");
         }
       }
 
       return Padding(
-        padding:
-            const EdgeInsets.only(right: 4.0), // Add spacing between images
+        padding: const EdgeInsets.only(right: 4.0),
         child: ClipRRect(
-          // Rounded corners
           borderRadius: BorderRadius.circular(8.0),
           child: ConstrainedBox(
             constraints: const BoxConstraints(
-              maxWidth: 80, // Slightly smaller max width
-              maxHeight: 80, // Slightly smaller max height
+              maxWidth: 80,
+              maxHeight: 80,
             ),
             child: SizedBox(
               width: double.infinity,
               height: double.infinity,
               child: FittedBox(
-                fit: BoxFit.cover, // slightly crop the image
+                fit: BoxFit.cover,
                 child: imageWidget,
               ),
             ),
@@ -78,13 +139,38 @@ class _ChatMessageState extends State<ChatMessage> {
         ),
       );
     } else {
-      // Handle other attachment types (e.g., show an icon)
-      return const Icon(Icons.attach_file); // Generic file icon
+      return const Icon(Icons.attach_file);
     }
+  }
+
+  String _preProcessMarkdown(String markdown) {
+    _latexPlaceholders.clear();
+    int placeholderCount = 0;
+
+    // Modified regex with better capture groups
+    final regex = RegExp(
+      r'(?<!\\)(?:\\\\)*(\$\$?)(?!\$)((?:\\[^\$]|[^\$])+?)\1',
+      multiLine: true,
+    );
+
+    return markdown.replaceAllMapped(regex, (match) {
+      placeholderCount++;
+      final placeholder = 'LATEX_PLACEHOLDER_$placeholderCount';
+      final delimiter = match.group(1)!;
+      final content = match.group(2)!;
+
+      // Preserve original LaTeX with proper escaping
+      _latexPlaceholders[placeholder] = '\\$delimiter$content\\$delimiter';
+
+      return placeholder;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final renderers = {
+      'text': LatexRenderer(latexPlaceholders: _latexPlaceholders),
+    };
     return GestureDetector(
       onLongPress: () => _showCopyMenu(context),
       onSecondaryTap: () => _showCopyMenu(context),
@@ -99,15 +185,26 @@ class _ChatMessageState extends State<ChatMessage> {
               constraints: BoxConstraints(
                 maxWidth: MediaQuery.of(context).size.width * 0.7,
               ),
-              padding: const EdgeInsets.all(12.0),
               decoration: BoxDecoration(
-                color: widget.isUser ? Colors.blueGrey : Colors.grey[800],
+                gradient: LinearGradient(
+                  colors: widget.isUser
+                      ? [
+                          Colors.lightBlue.shade300,
+                          Colors.blue.shade800,
+                        ]
+                      : [
+                          Colors.purple.shade400,
+                          Colors.indigo.shade800,
+                        ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: BorderRadius.circular(12.0),
               ),
+              padding: const EdgeInsets.all(12.0),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Reasoning toggle and content
                   if (!widget.isUser &&
                       widget.reasoning != null &&
                       widget.reasoning!.isNotEmpty)
@@ -139,43 +236,52 @@ class _ChatMessageState extends State<ChatMessage> {
                         if (_showReasoning || widget.isStreaming)
                           Padding(
                             padding: const EdgeInsets.only(bottom: 8.0),
-                            child: LaTexT(
-                              laTeXCode: Text(
-                                _convertToLaTeX(widget.reasoning!),
-                                style: TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 12,
-                                ),
+                            child: MarkdownBody(
+                              // Use MarkdownBody for reasoning too!
+                              data: _preProcessMarkdown(widget.reasoning!),
+                              styleSheet: MarkdownStyleSheet.fromTheme(
+                                      Theme.of(context))
+                                  .copyWith(
+                                p: GoogleFonts.roboto(
+                                    color: Colors.white70, fontSize: 12),
                               ),
+                              builders: renderers,
                             ),
                           ),
                       ],
                     ),
-
-                  // Main message content
                   widget.isStreaming
                       ? SelectableText(
                           widget.text,
-                          style: const TextStyle(color: Colors.white),
-                        )
-                      : SelectableRegion(
-                          selectionControls: materialTextSelectionControls,
-                          focusNode: FocusNode(),
-                          child: LaTexT(
-                            laTeXCode: Text(
-                              _convertToLaTeX(widget.text),
-                              style: const TextStyle(color: Colors.white),
-                            ),
+                          style: GoogleFonts.roboto(
+                            color: Colors.white,
                           ),
+                        )
+                      : MarkdownBody(
+                          data: _preProcessMarkdown(widget.text),
+                          styleSheet:
+                              MarkdownStyleSheet.fromTheme(Theme.of(context))
+                                  .copyWith(
+                            p: GoogleFonts.roboto(color: Colors.white),
+                            a: GoogleFonts.roboto(
+                                color: Colors.lightBlueAccent),
+                            code: GoogleFonts.robotoMono(
+                                color: Colors.yellowAccent),
+                            h1: GoogleFonts.roboto(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold),
+                            h2: GoogleFonts.roboto(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold),
+                          ),
+                          builders: renderers,
                         ),
-
-                  const SizedBox(
-                      height: 4), // Add spacing between text and images
-
-                  // Horizontal Attachment Display
+                  const SizedBox(height: 4),
                   if (widget.attachments.isNotEmpty)
                     SizedBox(
-                      height: 80, // Fixed height for the horizontal list
+                      height: 80,
                       child: ListView.builder(
                         scrollDirection: Axis.horizontal,
                         itemCount: widget.attachments.length,
@@ -185,9 +291,7 @@ class _ChatMessageState extends State<ChatMessage> {
                         },
                       ),
                     ),
-
                   const SizedBox(height: 2),
-                  // Copy and retry buttons
                   Align(
                     alignment: Alignment.centerRight,
                     child: Row(
@@ -247,30 +351,5 @@ class _ChatMessageState extends State<ChatMessage> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Message copied to clipboard')),
     );
-  }
-
-  String _convertToLaTeX(String text) {
-    // Convert markdown to LaTeX text formatting
-    String result = text;
-
-    // Convert bold
-    result = result.replaceAllMapped(
-      RegExp(r'\*\*(.*?)\*\*'),
-      (match) => '\\textbf{${match[1]}}',
-    );
-
-    // Convert italic
-    result = result.replaceAllMapped(
-      RegExp(r'\*(.*?)\*'),
-      (match) => '\\textit{${match[1]}}',
-    );
-
-    // Handle mathematical expressions
-    result = result.replaceAllMapped(
-      RegExp(r'(\d+\s*[\+\-\*\/×÷=]\s*\d+)|(\\\w+{.*?})|(\^{.*?})|(\${.*?}\$)'),
-      (match) => '\$${match[0]}\$',
-    );
-
-    return result;
   }
 }

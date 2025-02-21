@@ -2,16 +2,17 @@ import 'dart:io';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 import 'theme.dart';
 
 import 'screens/chat/chat_screen.dart';
 import 'screens/chat/chat_cubit.dart';
 
-
-
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 Future main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
   if (Platform.isWindows || Platform.isLinux) {
     // Initialize FFI
     sqfliteFfiInit();
@@ -19,13 +20,8 @@ Future main() async {
   }
 
   return runApp(
-      BlocProvider(
-        create: (context) => ChatCubit(
-
-        ),
-        child: const ChatApp(),
-      ),
-    );
+    BlocProvider(create: (context) => ChatCubit(), child: const ChatApp()),
+  );
 }
 
 class ChatApp extends StatelessWidget {
