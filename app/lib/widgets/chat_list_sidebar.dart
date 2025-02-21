@@ -225,12 +225,22 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
         return Container(
           // Added Container with BoxDecoration
           decoration: BoxDecoration(
+            color: folder.hexColorCode != null &&
+                    folder.hexColorCode!.length == 7 &&
+                    folder.hexColorCode![0] == '#'
+                ? Color(int.parse(folder.hexColorCode!.substring(1, 7),
+                            radix: 16) +
+                        0xFF000000)
+                    .withOpacity(0.2)
+                : Colors.grey.shade100
+                    .withOpacity(0.2), // Default color if hex code is invalid
             border: Border.all(
               color: Colors.grey.shade300, // Light grey border
               width: 1,
             ),
             borderRadius: BorderRadius.circular(8), // Optional: Rounded corners
           ),
+
           margin: const EdgeInsets.symmetric(
               vertical: 2, horizontal: 4), // added margin for spacing
           child: Column(
@@ -483,7 +493,8 @@ class _ChatListItemState extends State<_ChatListItem> {
         borderRadius: BorderRadius.circular(12),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
+          /*decoration: BoxDecoration( // Remove the gradient from chat items
+
             gradient: LinearGradient(
               colors: [
                 _startColor.withOpacity(widget.isSelected
@@ -494,11 +505,12 @@ class _ChatListItemState extends State<_ChatListItem> {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
+
             borderRadius: BorderRadius.circular(12),
             border: widget.isSelected
                 ? Border.all(color: Theme.of(context).colorScheme.primary)
                 : null,
-          ),
+          ),*/
           child: Row(
             children: [
               Expanded(
