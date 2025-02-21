@@ -42,15 +42,6 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
   Future<void> _loadFolders() async {
     final folderColl = await LocalDb.instance.folders;
     _folders = await folderColl.getFolders();
-    for (final folder in _folders) {
-      if (folder.id != null) {
-        if (kDebugMode) {
-          print("Folder: ${folder.id} ${folder.name}");
-        }
-        _folderExpandedState[folder.id] =
-            false; // Initially, all folders are collapsed.
-      }
-    }
     setState(() {});
   }
 

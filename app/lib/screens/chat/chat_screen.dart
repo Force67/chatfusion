@@ -354,6 +354,9 @@ class _Input extends StatelessWidget {
                     child: TextField(
                       controller: _textController,
                       style: const TextStyle(color: Colors.white),
+                      maxLines: 30,
+                      minLines: 1,
+                      keyboardType: TextInputType.multiline,
                       decoration: InputDecoration(
                         hintText: 'Type your message...',
                         hintStyle: const TextStyle(color: Colors.white70),
