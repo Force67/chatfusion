@@ -75,7 +75,8 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
     return '#${c.value.toRadixString(16).substring(2)}';
   }
 
-  Future<void> _createFolder(BuildContext context) async {
+  Future<void> _createFolder(BuildContext context,
+      {int? parentFolderId}) async {
     final TextEditingController folderNameController = TextEditingController();
     Color selectedColor = Colors.blue;
 
@@ -120,7 +121,7 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                 final folderName = folderNameController.text.trim();
                 if (folderName.isNotEmpty) {
                   final newFolder = Folder(
-                    parentId: 0,
+                    parentId: parentFolderId ?? 0,
                     name: folderName,
                     hexColorCode: _hexColorCodeFromColor(selectedColor),
                     createdAt: DateTime.now(),
@@ -220,7 +221,107 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
   Widget _buildFolderList(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      children: _folders.map((folder) {
+      children: _folders.where((folder) => folder.parentId == 0).map((folder) {
+        // Only root folders
+        final isExpanded = _folderExpandedState[folder.id] ?? false;
+        return Container(
+          // Added Container with BoxDecoration
+          decoration: BoxDecoration(
+            color: folder.hexColorCode != null &&
+                    folder.hexColorCode!.length == 7 &&
+                    folder.hexColorCode![0] == '#'
+                ? Color(int.parse(folder.hexColorCode!.substring(1, 7),
+                            radix: 16) +
+                        0xFF000000)
+                    .withOpacity(0.2)
+                : Colors.grey.shade100
+                    .withOpacity(0.2), // Default color if hex code is invalid
+            border: Border.all(
+              color: Colors.grey.shade300, // Light grey border
+              width: 1,
+            ),
+            borderRadius: BorderRadius.circular(8), // Optional: Rounded corners
+          ),
+
+          margin: const EdgeInsets.symmetric(
+              vertical: 2, horizontal: 4), // added margin for spacing
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ListTile(
+                title: Text(folder.name),
+                leading: isExpanded
+                    ? const Icon(Icons.folder_open)
+                    : const Icon(Icons.folder),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                        onPressed: () {
+                          if (kDebugMode) {
+                            print('New chat in folder ${folder.id}');
+                          }
+                          widget.onNewChat(folder);
+                        },
+                        icon: const Icon(Icons.add)),
+                    PopupMenuButton(
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'rename',
+                          child: Text('Rename'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Text('Delete'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'create_subfolder',
+                          child: Text('Create subfolder'),
+                        ),
+                      ],
+                      onSelected: (value) async {
+                        if (value == 'rename') {
+                          _renameFolder(context, folder);
+                        } else if (value == 'delete') {
+                          _confirmDeleteFolder(context, folder);
+                        } else if (value == 'create_subfolder') {
+                          _createFolder(context, parentFolderId: folder.id);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                onTap: () {
+                  setState(() {
+                    _folderExpandedState[folder.id] = !isExpanded;
+                  });
+                },
+              ),
+              if (isExpanded)
+                Padding(
+                  padding: const EdgeInsets.only(left: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildChatList(context, folder.id!),
+                      _buildSubfolderList(context, folder.id!),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildSubfolderList(BuildContext context, int parentFolderId) {
+    List<Folder> subfolders =
+        _folders.where((folder) => folder.parentId == parentFolderId).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: subfolders.map((folder) {
         final isExpanded = _folderExpandedState[folder.id] ?? false;
         return Container(
           // Added Container with BoxDecoration
@@ -285,8 +386,6 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                 ),
                 onTap: () {
                   setState(() {
-                    //  _selectedFolderId =
-                    //     _selectedFolderId == folder.id ? null : folder.id;
                     _folderExpandedState[folder.id] = !isExpanded;
                   });
                 },
@@ -320,7 +419,7 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
               final newName = controller.text.trim();
               if (newName.isNotEmpty) {
                 final updatedFolder = Folder(
-                  parentId: 0,
+                  parentId: folder.parentId,
                   id: folder.id,
                   name: newName,
                   hexColorCode: folder.hexColorCode,
