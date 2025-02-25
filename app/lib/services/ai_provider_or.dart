@@ -174,11 +174,13 @@ class AIProviderOpenrouter extends AIProvider {
         doesReasoning = additionalKnownReasoningModels.contains(permaslug);
       }
 
+      final provider = endpoint['provider_info']['name'];
+
       return LLModel(
         id: permaslug,
         name: shortName,
         description: description,
-        provider: "NOPE",
+        provider: provider,
         iconUrl: iconUrl,
         supportsImageInput: modelCapabilities.supportsImageInput,
         supportsImageOutput: modelCapabilities.supportsImageOutput,
