@@ -9,6 +9,42 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:flutter/widgets.dart';
 import 'package:markdown/markdown.dart' as md;
 
+// Custom code block builder to ensure code blocks are handled correctly
+class CodeBlockBuilder extends MarkdownElementBuilder {
+  @override
+  Widget build(BuildContext context, List<Widget> children) {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.all(12.0),
+      decoration: BoxDecoration(
+        color: Colors.black54,
+        borderRadius: BorderRadius.circular(8.0),
+      ),
+      width: double.infinity,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: children.isNotEmpty ? children.first : Container(),
+      ),
+    );
+  }
+
+  @override
+  Widget? visitText(md.Text text, TextStyle? style) {
+    // Return code as plain text, not LaTeX
+    return Text(
+      text
+      .text,
+      style: GoogleFonts.robotoMono(
+        color: Colors.lightGreenAccent,
+        fontSize: 14,
+      ),
+    );
+  }
+
+  @override
+  bool isBlockElement() => true;
+}
+
 class MathTextBuilder extends MarkdownElementBuilder {
   @override
   Widget? visitText(md.Text text, TextStyle? style) {
@@ -25,7 +61,9 @@ class MathTextBuilder extends MarkdownElementBuilder {
 
   bool _containsMathSyntax(String text) {
     return text.contains(r'\[') || text.contains(r'\]') ||
-           text.contains(r'$$') || text.contains(r'$') ||
+           text.contains(r'$$') ||
+           // Check for single dollar signs with more specific pattern to avoid false positives
+           (text.contains(r'$') && RegExp(r'\$[^$\s][^$]*\$').hasMatch(text)) ||
            text.contains(r'\sum') || text.contains(r'\frac') ||
            text.contains(r'\pi') || text.contains(r'\infty');
   }
@@ -36,7 +74,7 @@ class MathTextBuilder extends MarkdownElementBuilder {
     // Pattern to match LaTeX blocks: \[...\], $...$, $$...$$
     // Also handles common LaTeX commands
     final RegExp mathPattern = RegExp(
-      r'(\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\$[\s\S]*?\$|\\[a-zA-Z]+(?:_\{.*?\})?(?:\^.*?)?(?:\{.*?\})*)',
+      r'(\\\[[\s\S]*?\\\]|\$\$[\s\S]*?\$\$|\$[^\$\s][^\$]*?\$|\\[a-zA-Z]+(?:_\{.*?\})?(?:\^.*?)?(?:\{.*?\})*)',
       dotAll: true,
     );
 
@@ -64,6 +102,9 @@ class MathTextBuilder extends MarkdownElementBuilder {
         texContent = texContent.substring(1, texContent.length - 1);
       }
 
+      // Clean up the TeX content by balancing braces
+      texContent = _balanceBraces(texContent);
+
       spans.add(WidgetSpan(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 2.0),
@@ -74,6 +115,19 @@ class MathTextBuilder extends MarkdownElementBuilder {
             mathStyle: _determineMathStyle(mathExpression),
             onErrorFallback: (err) {
               print('LaTeX Error: ${err.message} for $texContent');
+              // If there's still an error, try further cleanup
+              if (err.message.contains("Expected 'EOF', got '}'")) {
+                final cleanerTeX = _removeTrailingBraces(texContent);
+                return Math.tex(
+                  cleanerTeX,
+                  textStyle: style ?? const TextStyle(color: Colors.white),
+                  mathStyle: _determineMathStyle(mathExpression),
+                  onErrorFallback: (_) {
+                    // Last resort fallback
+                    return Text(mathExpression, style: style);
+                  },
+                );
+              }
               return Text(mathExpression, style: style);
             },
           ),
@@ -98,6 +152,52 @@ class MathTextBuilder extends MarkdownElementBuilder {
         style: style,
       ),
     );
+  }
+
+  // Function to try to balance braces in LaTeX content
+  String _balanceBraces(String tex) {
+    int openCount = 0;
+    int closeCount = 0;
+
+    for (int i = 0; i < tex.length; i++) {
+      if (tex[i] == '{') openCount++;
+      else if (tex[i] == '}') closeCount++;
+    }
+
+    // Remove extra closing braces at the end
+    if (closeCount > openCount) {
+      int diff = closeCount - openCount;
+      // Check if the extra braces are at the end
+      int endIndex = tex.length - 1;
+      int removed = 0;
+
+      while (endIndex >= 0 && removed < diff) {
+        if (tex[endIndex] == '}') {
+          removed++;
+        } else if (tex[endIndex] != ' ' && tex[endIndex] != '\n') {
+          // If we hit a non-space character, break
+          break;
+        }
+        endIndex--;
+      }
+
+      if (removed > 0) {
+        // Only remove braces at the end if they're the problem
+        return tex.substring(0, tex.length - removed);
+      }
+    }
+
+    return tex;
+  }
+
+  // Helper function to remove trailing closing braces that cause errors
+  String _removeTrailingBraces(String tex) {
+    // If the error is specifically about extra closing braces
+    String cleanText = tex.trimRight();
+    while (cleanText.endsWith('}')) {
+      cleanText = cleanText.substring(0, cleanText.length - 1).trimRight();
+    }
+    return cleanText;
   }
 
   MathStyle _determineMathStyle(String expression) {
@@ -140,15 +240,44 @@ class DisplayMathBuilder extends MarkdownElementBuilder {
     // This handles text content that should be displayed as a math block
     final String content = text.text.trim();
 
+    // Check if this is math content or code content
+    if (content.contains('```python') ||
+        content.contains('```java') ||
+        content.contains('```dart') ||
+        content.contains('```javascript') ||
+        content.contains('```c++') ||
+        content.contains('```c#')) {
+      // This is a code block, not math, so return it as plain text
+      return Text(
+        content,
+        style: GoogleFonts.robotoMono(
+          color: Colors.lightGreenAccent,
+          fontSize: 14,
+        ),
+      );
+    }
+
     // Remove any Markdown code block formatting
     String texContent = content;
-    if (texContent.startsWith('```') && texContent.endsWith('```')) {
-      texContent = texContent.substring(3, texContent.length - 3).trim();
+    if (texContent.startsWith('```math') && texContent.endsWith('```')) {
+      texContent = texContent.substring(7, texContent.length - 3).trim();
+    } else if (texContent.startsWith('```') && texContent.endsWith('```')) {
+      // Return regular code, not math
+      return Text(
+        texContent.substring(3, texContent.length - 3).trim(),
+        style: GoogleFonts.robotoMono(
+          color: Colors.lightGreenAccent,
+          fontSize: 14,
+        ),
+      );
     }
 
     if (texContent.startsWith(r'\[') && texContent.endsWith(r'\]')) {
       texContent = texContent.substring(2, texContent.length - 2);
     }
+
+    // Clean up the TeX content by balancing braces
+    texContent = _balanceBraces(texContent);
 
     return Center(
       child: Container(
@@ -160,11 +289,70 @@ class DisplayMathBuilder extends MarkdownElementBuilder {
           mathStyle: MathStyle.display,
           onErrorFallback: (err) {
             print('Display LaTeX Error: ${err.message} for $texContent');
+            // If the error is about unexpected closing braces, try to fix it
+            if (err.message.contains("Expected 'EOF', got '}'")) {
+              final cleanerTeX = _removeTrailingBraces(texContent);
+              return Math.tex(
+                cleanerTeX,
+                textStyle: style ?? const TextStyle(color: Colors.white),
+                mathStyle: MathStyle.display,
+                onErrorFallback: (_) {
+                  // Last resort fallback
+                  return Text(content, style: style);
+                },
+              );
+            }
             return Text(content, style: style);
           },
         ),
       ),
     );
+  }
+
+  // Function to try to balance braces in LaTeX content
+  String _balanceBraces(String tex) {
+    int openCount = 0;
+    int closeCount = 0;
+
+    for (int i = 0; i < tex.length; i++) {
+      if (tex[i] == '{') openCount++;
+      else if (tex[i] == '}') closeCount++;
+    }
+
+    // Remove extra closing braces at the end
+    if (closeCount > openCount) {
+      int diff = closeCount - openCount;
+      // Check if the extra braces are at the end
+      int endIndex = tex.length - 1;
+      int removed = 0;
+
+      while (endIndex >= 0 && removed < diff) {
+        if (tex[endIndex] == '}') {
+          removed++;
+        } else if (tex[endIndex] != ' ' && tex[endIndex] != '\n') {
+          // If we hit a non-space character, break
+          break;
+        }
+        endIndex--;
+      }
+
+      if (removed > 0) {
+        // Only remove braces at the end if they're the problem
+        return tex.substring(0, tex.length - removed);
+      }
+    }
+
+    return tex;
+  }
+
+  // Helper function to remove trailing closing braces that cause errors
+  String _removeTrailingBraces(String tex) {
+    // If the error is specifically about extra closing braces
+    String cleanText = tex.trimRight();
+    while (cleanText.endsWith('}')) {
+      cleanText = cleanText.substring(0, cleanText.length - 1).trimRight();
+    }
+    return cleanText;
   }
 
   @override
@@ -313,12 +501,14 @@ class _ChatMessageState extends State<ChatMessage> {
   Widget build(BuildContext context) {
     // Create custom Markdown renderers
     final Map<String, MarkdownElementBuilder> builders = {
-      'p': MathTextBuilder(),
-      'text': MathTextBuilder(),
-      'code': MathTextBuilder(),
-      // Special handling for code blocks that contain math
-      'pre': DisplayMathBuilder(),
-    };
+        'p': MathTextBuilder(),
+        'text': MathTextBuilder(),
+        'code': MathTextBuilder(), // For inline code
+        // Special handling for different block types
+        'pre': DisplayMathBuilder(), // For math blocks with special formatting
+        // Add specific handler for code blocks
+        'code_block': CodeBlockBuilder(), // For code blocks with syntax highlighting
+      };
 
     String processedText = _preprocessText(widget.text);
     String? processedReasoning =
