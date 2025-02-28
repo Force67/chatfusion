@@ -7,6 +7,10 @@ import '../database/local_db.dart';
 import '../models/chat.dart';
 import '../models/llm.dart';
 import '../models/folder.dart';
+import '../screens/stats/stats_screen.dart';
+import '../screens/stats/stats_cubit.dart';
+import '../services/ai_provider_or.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ChatListSidebar extends StatefulWidget {
   final int? currentChatId;
@@ -175,6 +179,28 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                     _buildFolderList(context),
                   ],
                 ),
+              ),
+            ),
+                 const Divider(), // Visual separator before the stats button
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              child: ListTile(
+                leading: const Icon(Icons.insert_chart), // Stats icon
+                title: const Text('Stats'),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                     MaterialPageRoute(
+                      builder: (context) => BlocProvider(
+                        create: (context) => BillingCubit(aiProvider: AIProviderOpenrouter()),
+                        child: StatsOverview(),
+                      ),
+                    ),
+                  );
+                },
+                //style: ListTileStyle.listitem,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                tileColor: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.3),
               ),
             ),
           ],

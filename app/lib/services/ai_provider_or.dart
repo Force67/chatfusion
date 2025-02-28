@@ -402,13 +402,12 @@ class AIProviderOpenrouter extends AIProvider {
 
         if (jsonResponse['data'] != null) {
           final data = jsonResponse['data'];
+      //    print(data);
+          final usage = (data['usage'] ?? 0).toDouble();
+          final limit = (data['limit'] ?? 0).toDouble();
+          final rateLimit = data['rate_limit']['requests'].toDouble() ?? 0.0;
           return BillingInfo(
-           // label: data['label'] ?? 'N/A', // Provide default value if null
-            (data['usage'] ?? 0).toDouble(), // Ensure it's double, default 0
-            (data['limit'] ?? 0).toDouble(), // Handle null limit and cast to double
-           // isFreeTier: data['is_free_tier'] ?? false, // Default to false if null
-            data['rate_limit']['requests'] ?? 0, // Default to 0
-           // rateLimitInterval: data['rate_limit']['interval'] ?? 'N/A', // Default to 'N/A'
+            usage, limit, rateLimit
           );
         } else {
           print('Billing data not found in response.');
