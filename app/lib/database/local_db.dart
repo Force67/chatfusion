@@ -127,6 +127,17 @@ class LocalDb {
       );
     ''');
 
+    // This app supports having multiple platforms for the ai inference.
+    // For instance, Openrouter.
+    await db.execute('''
+      CREATE TABLE model_platforms(
+        provider_id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        shorthand TEXT NOT NULL,
+        cached_at TEXT NOT NULL
+      );
+    ''');
+
     if (kDebugMode) {
       print("Created database tables");
     }

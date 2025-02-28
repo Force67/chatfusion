@@ -1,6 +1,7 @@
 // chat_state.dart
 import 'dart:async';
 import "package:monkeychat/models/llm.dart";
+import 'package:monkeychat/services/model_service.dart';
 
 class ChatState {
   final int currentChatId;
@@ -17,8 +18,10 @@ class ChatState {
   final String? errorMessage;
   final bool chatsDeleted;
   final bool isThinking;
+  //final int msgsSinceLastSummary;
 
   ChatState({
+    // required this.modelSvc,
     this.currentChatId = -1,
     this.isNewChat = false,
     required this.selectedModel,

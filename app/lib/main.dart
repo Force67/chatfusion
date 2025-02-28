@@ -10,6 +10,8 @@ import 'screens/chat/chat_cubit.dart';
 
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
+import 'services/model_service.dart';
+
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -19,14 +21,15 @@ Future main() async {
     databaseFactory = databaseFactoryFfi;
   }
 
+  final ModelService modelSvc = ModelService();
+
   return runApp(
-    BlocProvider(create: (context) => ChatCubit(), child: const ChatApp()),
+    BlocProvider(create: (context) => ChatCubit(modelSvc), child: ChatApp()),
   );
 }
 
 class ChatApp extends StatelessWidget {
   const ChatApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
