@@ -269,10 +269,10 @@ class AIProviderOpenrouter extends AIProvider {
     };
 
     // Prepare message content
-    List<Map<String, dynamic>> messageContent = []; // Changed to dynamic
-
+       List<Map<String, dynamic>> messages;
     if (attachmentPaths != null && attachmentPaths.isNotEmpty) {
-      // Add the text prompt is available
+      // Add the text prompt if available
+      List<Map<String, dynamic>> messageContent = [];
       if (question.isNotEmpty) {
         messageContent.add({'type': 'text', 'text': question});
       }
@@ -293,35 +293,37 @@ class AIProviderOpenrouter extends AIProvider {
 
         messageContent.add({
           'type': 'image_url',
-          'image_url': {
-            'url': dataUri,
-            'detail': 'auto' // You can modify this based on needs
-          }
+          'image_url': {'url': dataUri, 'detail': 'auto'}
         });
       }
+      messages = [
+        {'role': 'user', 'content': messageContent}
+      ];
     } else {
-      messageContent = [
-        {'type': 'text', 'text': question}
+      messages = [
+        {'role': 'user', 'content': question} //content is now a normal string and *NOT* the attachment
       ]; // Only text
     }
 
     final payload = {
       'model': modelId,
-      'messages': [
-        {'role': 'user', 'content': messageContent}
-      ],
+      'messages': messages, // Use messages array as the message
       'stream': true,
+      'temperature': params['temperature'],
+      'top_p': params['top_p'],
+      'include_reasoning': params['include_reasoning'],
+      'frequency_penalty': params['frequency_penalty'],
+      'presence_penalty': params['presence_penalty'],
+      'repetition_penalty': params['repetition_penalty'],
+      'top_k': params['top_k'],
+      'min_p': params['min_p'],
     };
 
-    for (final key in params.keys) {
-      // ignore params set to null
-      // these may not have been initialized or set by the user yet
-      if (params[key] == null) {
-        continue;
-      }
+    //Prune null values
+    payload.removeWhere((key, value) => value == null);
 
-      payload[key] = params[key];
-    }
+    //print(messageContent);
+    print(jsonEncode(payload));
 
     bool includeReasoning = params.containsKey("include_reasoning") &&
         params["include_reasoning"] == true;
@@ -375,6 +377,50 @@ class AIProviderOpenrouter extends AIProvider {
           }
         }
       }
+    }
+  }
+
+   @override
+  Future<BillingInfo?> fetchBilling() async {
+    final apiKey = await _settingsService.getApiKey();
+    if (apiKey == null) {
+      print('API key not set, cannot fetch billing info.');
+      return null; // Or throw an exception if API key is mandatory for billing.
+    }
+
+    final url = Uri.parse('$_apiUrl/auth/key');
+    final headers = {
+      'Authorization': 'Bearer $apiKey',
+    };
+
+    try {
+      final response = await http.get(url, headers: headers);
+
+      if (response.statusCode == 200) {
+        final decodedBody = utf8.decode(response.bodyBytes);
+        final jsonResponse = jsonDecode(decodedBody);
+
+        if (jsonResponse['data'] != null) {
+          final data = jsonResponse['data'];
+          return BillingInfo(
+           // label: data['label'] ?? 'N/A', // Provide default value if null
+            (data['usage'] ?? 0).toDouble(), // Ensure it's double, default 0
+            (data['limit'] ?? 0).toDouble(), // Handle null limit and cast to double
+           // isFreeTier: data['is_free_tier'] ?? false, // Default to false if null
+            data['rate_limit']['requests'] ?? 0, // Default to 0
+           // rateLimitInterval: data['rate_limit']['interval'] ?? 'N/A', // Default to 'N/A'
+          );
+        } else {
+          print('Billing data not found in response.');
+          return null;
+        }
+      } else {
+        print('Failed to fetch billing info. Status code: ${response.statusCode}, body: ${response.body}');
+        return null; // Or throw an exception depending on error handling strategy
+      }
+    } catch (e) {
+      print('Error fetching billing info: $e');
+      return null; // Or throw an exception
     }
   }
 }

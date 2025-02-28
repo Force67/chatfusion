@@ -82,16 +82,22 @@ class ChatCubit extends Cubit<ChatState> {
       Map<String, dynamic> oldParams, Map<String, dynamic> newParams) {
     List<String> changes = [];
 
-    // List of parameter keys we want to display (customize this). Make sure it matches the models keys
     const displayKeys = [
       'temperature',
       'max_tokens',
-      'top_p'
-    ]; // Add all appropriate keys
+      'top_p',
+      'include_reasoning',
+      'top_p',
+      'min_p',
+      // TODO: add remainer
+
+    ];
 
     for (final key in displayKeys) {
       final oldValue = oldParams[key];
       final newValue = newParams[key];
+      print(oldValue);
+      print(newValue);
       //check both null or both not null, if both null its ok and there is no change, same with not null both values should be the same
       if ((oldValue == null && newValue != null) ||
           (oldValue != null && newValue == null) ||
@@ -126,15 +132,19 @@ class ChatCubit extends Cubit<ChatState> {
       return;
     }
 
+    print("Updatesettings");
+    print(newParams);
+
     // Format the settings and their values into a human-readable string.
     String settingsChanges =
         _formatSettingsChanges(state.modelSettings, newParams);
 
     // If no settings were actually changed, don't add a message.
     if (settingsChanges.isEmpty) {
+      print("no update!");
       return; // early exist
     }
-
+    print("aa");
     //Emit Thinking
     emit(state.copyWith(isThinking: true));
 
@@ -144,6 +154,8 @@ class ChatCubit extends Cubit<ChatState> {
     // Persist/update the new settings
     final chats = await LocalDb.instance.chats;
     final chatId = state.currentChatId;
+
+        print("bb");
 
     chats.updateParams(chatId, newParams);
     emit(state.copyWith(modelSettings: newParams, isThinking: false));

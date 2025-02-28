@@ -12,6 +12,14 @@ class TokenEvent {
   String toString() => '[$type] $text';
 }
 
+class BillingInfo {
+  final double usage;
+  final double limit;
+  final double maxRequests;
+
+  BillingInfo(this.usage, this.limit, this.maxRequests);
+}
+
 abstract class AIProvider {
   // Returns a list of available models
   Future<List<LLModel>> getModels({bool forceRefresh = false});
@@ -22,4 +30,7 @@ abstract class AIProvider {
       Map<String, dynamic> params, List<String>? attachmentPaths);
 
   Future<String> fetchImageURL(String modelId);
+
+  // Returns info about the amount of credits used etc.
+  Future<BillingInfo?> fetchBilling();
 }
