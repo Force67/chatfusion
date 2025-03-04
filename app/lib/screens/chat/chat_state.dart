@@ -1,7 +1,6 @@
 // chat_state.dart
 import 'dart:async';
 import "package:monkeychat/models/llm.dart";
-import 'package:monkeychat/services/model_service.dart';
 
 class ChatState {
   final int currentChatId;

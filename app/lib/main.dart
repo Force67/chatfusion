@@ -1,8 +1,7 @@
 import 'dart:io';
 import 'package:flutter_bloc/flutter_bloc.dart';
-
+import 'package:provider/provider.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_math_fork/flutter_math.dart';
 import 'theme.dart';
 
 import 'screens/chat/chat_screen.dart';
@@ -24,7 +23,13 @@ Future main() async {
   final ModelService modelSvc = ModelService();
 
   return runApp(
-    BlocProvider(create: (context) => ChatCubit(modelSvc), child: ChatApp()),
+    MultiProvider(
+      providers: [
+        Provider<ModelService>(create: (context) => modelSvc),
+        BlocProvider<ChatCubit>(create: (context) => ChatCubit(modelSvc)),
+      ],
+      child: const ChatApp(),
+    ),
   );
 }
 

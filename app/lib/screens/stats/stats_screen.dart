@@ -216,7 +216,7 @@ class StatsOverview extends StatelessWidget {
                     // Styled Progress bar
                     value: currentValue / maxValue,
                     backgroundColor:
-                        colorScheme.surfaceVariant, // Themed background color
+                        colorScheme.surfaceContainerHighest, // Themed background color
                     color: colorScheme.primary, // Themed progress color
                     minHeight: 6, // Make progress bar a bit thicker
                     borderRadius:

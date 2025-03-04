@@ -1,6 +1,5 @@
 import 'package:bloc/bloc.dart';
 import '../../services/ai_provider.dart';
-import '../../models/llm.dart';
 
 part 'stats_state.dart';
 

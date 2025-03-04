@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:monkeychat/models/message.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:flutter/widgets.dart';
 import 'package:markdown/markdown.dart' as md;
 
 // Custom code block builder to ensure code blocks are handled correctly
@@ -160,8 +159,9 @@ class MathTextBuilder extends MarkdownElementBuilder {
     int closeCount = 0;
 
     for (int i = 0; i < tex.length; i++) {
-      if (tex[i] == '{') openCount++;
-      else if (tex[i] == '}') closeCount++;
+      if (tex[i] == '{') {
+        openCount++;
+      } else if (tex[i] == '}') closeCount++;
     }
 
     // Remove extra closing braces at the end
@@ -315,8 +315,9 @@ class DisplayMathBuilder extends MarkdownElementBuilder {
     int closeCount = 0;
 
     for (int i = 0; i < tex.length; i++) {
-      if (tex[i] == '{') openCount++;
-      else if (tex[i] == '}') closeCount++;
+      if (tex[i] == '{') {
+        openCount++;
+      } else if (tex[i] == '}') closeCount++;
     }
 
     // Remove extra closing braces at the end

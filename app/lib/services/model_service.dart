@@ -2,16 +2,11 @@ import 'ai_provider.dart';
 import 'ai_provider_mock.dart';
 import 'ai_provider_or.dart';
 
-enum ProviderType {
-  mock,
-  openrouter,
-}
-
 class ModelService {
   Map<ProviderType, AIProvider> providers = {};
 
   ModelService() {
-    providers[ProviderType.mock] = AiProviderMock();
+    providers[ProviderType.mockProvider] = AiProviderMock();
     providers[ProviderType.openrouter] = AIProviderOpenrouter();
   }
 

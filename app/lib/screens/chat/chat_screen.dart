@@ -9,6 +9,7 @@ import 'package:monkeychat/screens/settings/settings_cubit.dart';
 import 'package:monkeychat/database/local_db.dart';
 
 import 'package:monkeychat/models/message.dart';
+import 'package:monkeychat/services/model_service.dart';
 import 'package:monkeychat/widgets/chat_message.dart';
 import 'package:monkeychat/services/settings_service.dart';
 import 'package:monkeychat/services/ai_provider_or.dart';
@@ -147,8 +148,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final modelSVC = context.read<ModelService>();
     return BlocProvider(
-      create: (context) => ChatCubit(),
+      create: (context) => ChatCubit(modelSVC),
       child: BlocConsumer<ChatCubit, ChatState>(
         listener: (context, state) {
           if (state.errorMessage != null) {

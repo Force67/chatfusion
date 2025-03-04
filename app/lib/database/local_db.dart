@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:monkeychat/database/folder_collection.dart';
 import 'package:monkeychat/database/message_collection.dart';
-import 'package:monkeychat/models/folder.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/llm.dart';
@@ -128,7 +127,8 @@ class LocalDb {
     ''');
 
     // This app supports having multiple platforms for the ai inference.
-    // For instance, Openrouter.
+    // For instance, Openrouter and ollama. This table encodes the configured
+    // providers with numeric ids.
     await db.execute('''
       CREATE TABLE model_platforms(
         provider_id INTEGER PRIMARY KEY,

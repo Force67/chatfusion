@@ -6,15 +6,13 @@ import 'package:monkeychat/database/local_db.dart';
 import 'package:monkeychat/models/chat.dart';
 import 'package:monkeychat/models/folder.dart';
 import 'package:monkeychat/models/message.dart';
-import 'package:monkeychat/services/ai_provider.dart';
 import 'package:monkeychat/models/llm.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:monkeychat/services/model_service.dart';
+import 'package:monkeychat/services/ai_provider.dart';
 import 'dart:io';
 
 import "chat_state.dart";
-
-import "package:monkeychat/services/ai_provider_or.dart";
 
 extension StringExtension on String {
   String capitalize() {
@@ -23,6 +21,8 @@ extension StringExtension on String {
 }
 
 class ChatCubit extends Cubit<ChatState> {
+  late ModelService svc;
+
   ChatCubit(ModelService modelSvc)
       : super(ChatState(
           selectedAttachmentPaths: [],
@@ -30,6 +30,7 @@ class ChatCubit extends Cubit<ChatState> {
           modelSettings: {},
           isThinking: false, // Initialize isThinking to false
         )) {
+    svc = modelSvc;
     _loadLastChat();
   }
 
@@ -352,7 +353,8 @@ class ChatCubit extends Cubit<ChatState> {
   }
 
   Future<LLModel?> getModelForChat(String modelId) async {
-    final models = await provider.getModels();
+    final provider = svc.getProvider(ProviderType.openrouter);
+    final models = await provider!.getModels();
     return models.firstWhere((m) => m.id == modelId);
   }
 
@@ -397,7 +399,9 @@ class ChatCubit extends Cubit<ChatState> {
       final processedContext =
           state.contextCleared ? [userMessage.text] : finalContext;
 
-      final stream = provider.streamResponse(
+      final provider = svc.getProvider(ProviderType.openrouter);
+
+      final stream = provider!.streamResponse(
         state.selectedModel!.id,
         processedContext.join('\n'),
         state.modelSettings,
