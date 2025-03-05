@@ -13,8 +13,9 @@ class ExportImport {
   final LocalDb _localDb = LocalDb.instance;
 
   /// Exports all chats, messages, and attachments to a JSON string.
-  Future<String> exportChatsToJson() async {
-    final chatsCollection = await _localDb.chats;
+  /// Exports all chats, messages, and attachments for a specific folder to a JSON string.
+  Future<String> exportChatsToJson(int folderId) async {
+    final folderCollection = await _localDb.folders;
     final messagesCollection = await _localDb.messages;
     final attachmentsCollection = await _localDb.attachments;
 
@@ -22,7 +23,8 @@ class ExportImport {
       throw Exception('Attachments collection is not initialized');
     }
 
-    final chats = await chatsCollection.getChats();
+    // Fetch chats only in the specified folder
+    final chats = await folderCollection.getChatsInFolder(folderId);
     List<Map<String, dynamic>> exportData = [];
 
     for (final chat in chats) {

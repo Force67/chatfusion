@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
@@ -7,7 +6,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:monkeychat/database/export_import.dart';
-import 'package:monkeychat/database/folder_collection.dart';
 import 'package:path_provider/path_provider.dart';
 import '../database/local_db.dart';
 import '../models/chat.dart';
@@ -70,6 +68,10 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
       chats.add(cht);
     }
     return chats;
+  }
+
+  String _hexColorCodeFromColor(Color c) {
+    return '#${c.value.toRadixString(16).substring(2)}';
   }
 
   Future<void> _createFolder(BuildContext context,
@@ -137,14 +139,8 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
     );
   }
 
-  String _hexColorCodeFromColor(Color c) {
-    return '#${c.value.toRadixString(16).substring(2)}';
-  }
-
   @override
   Widget build(BuildContext context) {
-    final ExportImport exportImport = ExportImport();
-
     return Container(
       width: MediaQuery.of(context).size.width * 0.85,
       decoration: BoxDecoration(
@@ -154,7 +150,7 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
             color: Colors.black.withOpacity(0.1),
             blurRadius: 16,
             offset: const Offset(4, 0),
-          ),
+          )
         ],
       ),
       child: SafeArea(
@@ -189,82 +185,12 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                 ),
               ),
             ),
-            const Divider(),
-            // Add the export/import buttons here
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-              child: Column(
-                children: [
-                  ElevatedButton(
-                    onPressed: () async {
-                      // Export data to JSON
-                      final jsonString = await exportImport.exportChatsToJson();
-
-                      // Convert JSON string to bytes
-                      final jsonBytes = utf8.encode(jsonString);
-
-                      // Allow user to choose where to save the JSON file
-                      final String? outputFilePath =
-                          await FilePicker.platform.saveFile(
-                        dialogTitle: 'Export chats to JSON',
-                        fileName: 'chats_export.json',
-                        allowedExtensions: ['json'],
-                        bytes: jsonBytes, // Pass the bytes here
-                      );
-
-                      if (outputFilePath != null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Chats exported to $outputFilePath'),
-                          ),
-                        );
-                      }
-                    },
-                    child: const Text('Export to JSON'),
-                  ),
-                  const SizedBox(height: 8),
-                  ElevatedButton(
-                    onPressed: () async {
-                      // Allow user to select a JSON file for import
-                      final result = await FilePicker.platform.pickFiles(
-                        type: FileType.custom,
-                        allowedExtensions: ['json'],
-                      );
-                      if (result != null) {
-                        final file = File(result.files.single.path!);
-                        final jsonString = await file.readAsString();
-
-                        // Show folder selection dialog
-                        final folderColl = await LocalDb.instance.folders;
-                        final folders = await folderColl.getFolders();
-                        final selectedFolderId =
-                            await selectFolder(context, folders);
-
-                        if (selectedFolderId != null) {
-                          await exportImport.importChatsFromJson(
-                            jsonString,
-                            selectedFolderId,
-                          );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Chats imported from JSON'),
-                            ),
-                          );
-                        }
-                      }
-                    },
-                    child: const Text('Import from JSON'),
-                  ),
-                ],
-              ),
-            ),
-            const Divider(),
+            const Divider(), // Visual separator before the stats button
             Padding(
               padding:
                   const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: ListTile(
-                leading: const Icon(Icons.insert_chart),
+                leading: const Icon(Icons.insert_chart), // Stats icon
                 title: const Text('Stats'),
                 onTap: () {
                   Navigator.push(
@@ -278,9 +204,9 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                     ),
                   );
                 },
+                //style: ListTileStyle.listitem,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                ),
+                    borderRadius: BorderRadius.circular(10)),
                 tileColor: Theme.of(context)
                     .colorScheme
                     .secondaryContainer
@@ -304,10 +230,11 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
         boxShadow: [
           // Add a subtle shadow
           BoxShadow(
-            color: Colors.black.withOpacity(0.1),
+            color:
+                Colors.black.withOpacity(0.1), // Shadow color and transparency
             spreadRadius: 2,
             blurRadius: 6,
-            offset: const Offset(0, 3),
+            offset: const Offset(0, 3), // changes position of shadow
           ),
         ],
       ),
@@ -322,7 +249,10 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: _folders.where((folder) => folder.parentId == 0).map((folder) {
+        // Only root folders
+        final isExpanded = _folderExpandedState[folder.id] ?? false;
         return Container(
+          // Added Container with BoxDecoration
           decoration: BoxDecoration(
             color: folder.hexColorCode != null &&
                     folder.hexColorCode!.length == 7 &&
@@ -331,34 +261,296 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                             radix: 16) +
                         0xFF000000)
                     .withOpacity(0.2)
-                : Colors.grey.shade100.withOpacity(0.2),
+                : Colors.grey.shade100
+                    .withOpacity(0.2), // Default color if hex code is invalid
             border: Border.all(
-              color: Colors.grey.shade300,
+              color: Colors.grey.shade300, // Light grey border
               width: 1,
             ),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(8), // Optional: Rounded corners
           ),
-          margin: const EdgeInsets.symmetric(vertical: 2, horizontal: 4),
+
+          margin: const EdgeInsets.symmetric(
+              vertical: 2, horizontal: 4), // added margin for spacing
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               ListTile(
                 title: Text(folder.name),
-                leading: Icon(Icons.folder),
-                trailing: IconButton(
-                  icon: const Icon(Icons.add),
-                  onPressed: () {
-                    widget.onNewChat(folder);
-                  },
+                leading: Icon(isExpanded ? Icons.folder_open : Icons.folder,
+                    color:
+                        _getFolderIconColor(folder)), // Use custom icon color
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                        onPressed: () {
+                          if (kDebugMode) {
+                            print('New chat in folder ${folder.id}');
+                          }
+                          widget.onNewChat(folder);
+                        },
+                        icon: const Icon(Icons.add)),
+                    PopupMenuButton(
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'rename',
+                          child: Text('Rename'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Text('Delete'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'export',
+                          child: Text('Export Folder'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'import',
+                          child: Text('Import into Folder'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'create_subfolder',
+                          child: Text('Create subfolder'),
+                        ),
+                      ],
+                      onSelected: (value) async {
+                        if (value == 'rename') {
+                          _renameFolder(context, folder);
+                        } else if (value == 'delete') {
+                          _confirmDeleteFolder(context, folder);
+                        } else if (value == 'export') {
+                          _exportFolder(context, folder);
+                        } else if (value == 'import') {
+                          await _importChats(context, folder.id!);
+                        } else if (value == 'create_subfolder') {
+                          _createFolder(context, parentFolderId: folder.id);
+                        }
+                      },
+                    ),
+                  ],
                 ),
                 onTap: () {
                   setState(() {
-                    _folderExpandedState[folder.id] =
-                        !(_folderExpandedState[folder.id] ?? false);
+                    _folderExpandedState[folder.id] = !isExpanded;
                   });
                 },
               ),
-              if (_folderExpandedState[folder.id] ?? false)
+              if (isExpanded)
+                Padding(
+                  padding: const EdgeInsets.only(left: 16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildChatList(context, folder.id!),
+                      _buildSubfolderList(context, folder.id!),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        );
+      }).toList(),
+    );
+  }
+
+  Future<void> _exportFolder(BuildContext context, Folder folder) async {
+    final exportImport = ExportImport();
+    try {
+      // Export all chats in the folder
+      final jsonString = await exportImport.exportChatsToJson(folder.id!);
+
+      // Allow the user to choose the export path
+      final String? selectedDirectory =
+          await FilePicker.platform.getDirectoryPath();
+
+      if (selectedDirectory == null) {
+        // User canceled the file picker
+        return;
+      }
+
+      // Save the JSON string to the chosen file
+      final filePath =
+          '$selectedDirectory/export_folder_${folder.name}_${DateTime.now().millisecondsSinceEpoch}.json';
+      final file = File(filePath);
+      await file.writeAsString(jsonString);
+
+      // Show a success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Folder exported to $filePath'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error exporting folder: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _importChats(BuildContext context, int folderId) async {
+    try {
+      // Allow the user to select a file for import
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+
+      if (result == null || result.files.single.path == null) {
+        // User canceled the file picker
+        return;
+      }
+
+      // Read the selected file
+      final file = File(result.files.single.path!);
+      final jsonString = await file.readAsString();
+
+      // Import the chats into the selected folder
+      final exportImport = ExportImport();
+      await exportImport.importChatsFromJson(jsonString, folderId);
+
+      // Show a success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Chats imported successfully into the folder'),
+          ),
+        );
+      }
+
+      // Refresh the UI
+      await _loadFolders();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error importing chats: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Color _getFolderIconColor(Folder folder) {
+    if (folder.hexColorCode != null &&
+        folder.hexColorCode!.length == 7 &&
+        folder.hexColorCode![0] == '#') {
+      try {
+        return Color(
+            int.parse(folder.hexColorCode!.substring(1, 7), radix: 16) +
+                0xFF000000);
+      } catch (e) {
+        // Handle parsing errors, return a default color
+        return Colors.grey;
+      }
+    } else {
+      // Return a default color if hex code is invalid
+      return Colors.grey;
+    }
+  }
+
+  Widget _buildSubfolderList(BuildContext context, int parentFolderId) {
+    List<Folder> subfolders =
+        _folders.where((folder) => folder.parentId == parentFolderId).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: subfolders.map((folder) {
+        final isExpanded = _folderExpandedState[folder.id] ?? false;
+        return Container(
+          // Added Container with BoxDecoration
+          decoration: BoxDecoration(
+            color: folder.hexColorCode != null &&
+                    folder.hexColorCode!.length == 7 &&
+                    folder.hexColorCode![0] == '#'
+                ? Color(int.parse(folder.hexColorCode!.substring(1, 7),
+                            radix: 16) +
+                        0xFF000000)
+                    .withOpacity(0.2)
+                : Colors.grey.shade100
+                    .withOpacity(0.2), // Default color if hex code is invalid
+            border: Border.all(
+              color: Colors.grey.shade300, // Light grey border
+              width: 1,
+            ),
+            borderRadius: BorderRadius.circular(8), // Optional: Rounded corners
+          ),
+
+          margin: const EdgeInsets.symmetric(
+              vertical: 2, horizontal: 4), // added margin for spacing
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              ListTile(
+                title: Text(folder.name),
+                leading: Icon(isExpanded ? Icons.folder_open : Icons.folder,
+                    color:
+                        _getFolderIconColor(folder)), // Use custom icon color
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    IconButton(
+                        onPressed: () {
+                          if (kDebugMode) {
+                            print('New chat in folder ${folder.id}');
+                          }
+                          widget.onNewChat(folder);
+                        },
+                        icon: const Icon(Icons.add)),
+                    PopupMenuButton(
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'rename',
+                          child: Text('Rename'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Text('Delete'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'export',
+                          child: Text('Export Folder'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'import',
+                          child: Text('Import into Folder'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'create_subfolder',
+                          child: Text('Create subfolder'),
+                        ),
+                      ],
+                      onSelected: (value) async {
+                        if (value == 'rename') {
+                          _renameFolder(context, folder);
+                        } else if (value == 'delete') {
+                          _confirmDeleteFolder(context, folder);
+                        } else if (value == 'export') {
+                          _exportFolder(context, folder);
+                        } else if (value == 'import') {
+                          await _importChats(context, folder.id!);
+                        } else if (value == 'create_subfolder') {
+                          _createFolder(context, parentFolderId: folder.id);
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                onTap: () {
+                  setState(() {
+                    _folderExpandedState[folder.id] = !isExpanded;
+                  });
+                },
+              ),
+              if (isExpanded)
                 Padding(
                   padding: const EdgeInsets.only(left: 16.0),
                   child: _buildChatList(context, folder.id!),
@@ -367,6 +559,67 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
           ),
         );
       }).toList(),
+    );
+  }
+
+  void _renameFolder(BuildContext context, Folder folder) async {
+    final controller = TextEditingController(text: folder.name);
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Rename Folder'),
+        content: TextField(controller: controller),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () async {
+              final newName = controller.text.trim();
+              if (newName.isNotEmpty) {
+                final updatedFolder = Folder(
+                  parentId: folder.parentId,
+                  id: folder.id,
+                  name: newName,
+                  hexColorCode: folder.hexColorCode,
+                  createdAt: folder.createdAt,
+                );
+                final folderColl = await LocalDb.instance.folders;
+                await folderColl.update(updatedFolder);
+                await _loadFolders();
+                if (mounted) Navigator.pop(context);
+              }
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteFolder(BuildContext context, Folder folder) async {
+    await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Folder?'),
+        content: const Text('This will only remove the folder, not the chats.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              final folderColl = await LocalDb.instance.folders;
+              await folderColl.deleteFolderAndRemoveChatsFromFolder(folder.id!);
+              await _loadFolders();
+              if (mounted) Navigator.pop(context);
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -398,8 +651,9 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
         return Material(
           color: Colors.transparent,
           child: ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+            shrinkWrap: true, // Important for nesting in Column
+            physics:
+                const NeverScrollableScrollPhysics(), // Disable list's own scrolling
             padding: const EdgeInsets.only(top: 16),
             itemCount: chats.length,
             separatorBuilder: (_, __) => const Divider(height: 1, indent: 16),
@@ -410,7 +664,7 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
               getModelForChat: widget.getModelForChat,
               folderId: folderId,
               onFolderUpdated: () {
-                setState(() {});
+                setState(() {}); // Refresh sidebar after folder change
               },
             ),
           ),
@@ -419,31 +673,45 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
     );
   }
 
-  Future<int?> selectFolder(BuildContext context, List<Folder> folders) async {
-    int? selectedFolderId;
-    await showDialog(
-      context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Select Folder'),
-          content: DropdownButton<int>(
-            hint: const Text('Choose a folder'),
-            value: selectedFolderId,
-            onChanged: (value) {
-              selectedFolderId = value;
-              Navigator.pop(context);
-            },
-            items: folders.map((folder) {
-              return DropdownMenuItem<int>(
-                value: folder.id,
-                child: Text(folder.name),
-              );
-            }).toList(),
+  Widget _buildDeleteButton(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: TextButton.icon(
+        icon: const Icon(Icons.delete_outline, size: 20),
+        label: const Text('Delete All Chats'),
+        onPressed: () => _confirmDelete(context),
+        style: TextButton.styleFrom(
+          foregroundColor: Theme.of(context).colorScheme.error,
+          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
-        );
-      },
+        ),
+      ),
     );
-    return selectedFolderId;
+  }
+
+  void _confirmDelete(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete all chats?'),
+        content: const Text('This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              widget.onDeleteAllChats();
+            },
+            child: const Text('Delete', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
   }
 }
 
