@@ -43,6 +43,9 @@ dependencies:
   flutter_colorpicker:
   loading_animation_widget:
   google_fonts:
+  archive: ^4.0.4
+  share_plus: ^10.1.4
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:
