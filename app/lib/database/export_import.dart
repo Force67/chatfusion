@@ -79,22 +79,34 @@ class ExportImport {
 
     final uuid = Uuid();
 
+    // Map to store old chat IDs to new chat IDs
+    final Map<int, int> chatIdMap = {};
+
     for (final chatData in exportData) {
       var chat = Chat.fromMap(chatData);
-      chat = chat.copyWith(folderId: selectedFolderId);
-      final chatId = await chatsCollection.insertChat(chat);
+      chat =
+          chat.copyWith(id: null, folderId: selectedFolderId); // Reset the ID
+      final newChatId = await chatsCollection.insertChat(chat);
+      chatIdMap[chatData['id']] = newChatId;
 
       final messages = chatData['messages'] as List<dynamic>;
+
+      // Map to store old message IDs to new message IDs
+      final Map<int, int> messageIdMap = {};
+
       for (final messageData in messages) {
         var message = Message.fromMap(messageData);
-        message = message.copyWith(chatId: chatId);
-        final messageId = await messagesCollection.insertMessage(message);
+        message = message.copyWith(id: null, chatId: newChatId); // Reset the ID
+        final newMessageId = await messagesCollection.insertMessage(message);
+        messageIdMap[messageData['id']] = newMessageId;
 
         final attachments = messageData['attachments'] as List<dynamic>;
         for (final attachmentData in attachments) {
           var attachment = Attachment.fromMap(attachmentData);
-          attachment = attachment.copyWith(attachmentId: uuid.v4());
-          attachment.messageId = messageId;
+          attachment = attachment.copyWith(
+            attachmentId: uuid.v4(), // Generate a new unique ID
+            messageId: newMessageId,
+          );
 
           // If the attachment is a file, decode the Base64 data and save it to a new file
           if (attachment.isFilePath &&
