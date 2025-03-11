@@ -38,7 +38,8 @@ class ChatListSidebar extends StatefulWidget {
 class _ChatListSidebarState extends State<ChatListSidebar> {
   List<Folder> _folders = [];
   int? _selectedFolderId;
-  final Map<int?, bool> _folderExpandedState = {}; // Track expanded state of folders
+  final Map<int?, bool> _folderExpandedState =
+      {}; // Track expanded state of folders
 
   @override
   void initState() {
@@ -76,6 +77,7 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
   Future<void> _createFolder(BuildContext context,
       {int? parentFolderId}) async {
     final TextEditingController folderNameController = TextEditingController();
+    final TextEditingController folderPassController = TextEditingController();
     Color selectedColor = Colors.blue;
 
     await showDialog(
@@ -89,6 +91,10 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
               TextField(
                 controller: folderNameController,
                 decoration: const InputDecoration(hintText: 'Folder Name'),
+              ),
+              TextField(
+                controller: folderPassController,
+                decoration: const InputDecoration(hintText: 'Folder Password'),
               ),
               ColorPicker(
                 pickerColor: selectedColor,
@@ -122,6 +128,7 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                     parentId: parentFolderId ?? 0,
                     name: folderName,
                     hexColorCode: _hexColorCodeFromColor(selectedColor),
+                    hashedPassword: folderPassController.text.trim(),
                     createdAt: DateTime.now(),
                   );
                   final folderColl = await LocalDb.instance.folders;
@@ -438,12 +445,10 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
   }
 
   Color _getFolderIconColor(Folder folder) {
-    if (folder.hexColorCode.length == 7 &&
-        folder.hexColorCode[0] == '#') {
+    if (folder.hexColorCode.length == 7 && folder.hexColorCode[0] == '#') {
       try {
-        return Color(
-            int.parse(folder.hexColorCode.substring(1, 7), radix: 16) +
-                0xFF000000);
+        return Color(int.parse(folder.hexColorCode.substring(1, 7), radix: 16) +
+            0xFF000000);
       } catch (e) {
         // Handle parsing errors, return a default color
         return Colors.grey;
@@ -579,6 +584,7 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                   id: folder.id,
                   name: newName,
                   hexColorCode: folder.hexColorCode,
+                  hashedPassword: folder.hashedPassword,
                   createdAt: folder.createdAt,
                 );
                 final folderColl = await LocalDb.instance.folders;

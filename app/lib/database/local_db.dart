@@ -78,6 +78,7 @@ class LocalDb {
         parent_id INTEGER,
         name TEXT NOT NULL,
         color_code TEXT NOT NULL, -- Hex color code
+        hashed_password TEXT, -- May be null, salted and encrypted
         created_at TEXT NOT NULL
       );
     ''');
