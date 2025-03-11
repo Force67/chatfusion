@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:flutter/services.dart';
 import 'package:monkeychat/models/attachment.dart';
-import 'package:monkeychat/models/message.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:markdown/markdown.dart' as md;
@@ -162,9 +161,9 @@ class MathTextBuilder extends MarkdownElementBuilder {
     int closeCount = 0;
 
     for (int i = 0; i < tex.length; i++) {
-      if (tex[i] == '{')
+      if (tex[i] == '{') {
         openCount++;
-      else if (tex[i] == '}') closeCount++;
+      } else if (tex[i] == '}') closeCount++;
       if (tex[i] == '{') {
         openCount++;
       } else if (tex[i] == '}') closeCount++;
@@ -323,9 +322,9 @@ class DisplayMathBuilder extends MarkdownElementBuilder {
     int closeCount = 0;
 
     for (int i = 0; i < tex.length; i++) {
-      if (tex[i] == '{')
+      if (tex[i] == '{') {
         openCount++;
-      else if (tex[i] == '}') closeCount++;
+      } else if (tex[i] == '}') closeCount++;
       if (tex[i] == '{') {
         openCount++;
       } else if (tex[i] == '}') closeCount++;

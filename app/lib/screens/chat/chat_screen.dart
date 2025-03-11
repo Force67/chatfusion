@@ -188,15 +188,16 @@ class _ChatScreenState extends State<ChatScreen> {
               child: ChatListSidebar(
                 currentChatId: state.currentChatId,
                 onChatSelected: (chatId) async {
+                  if (!mounted) return;
                   final chats = await LocalDb.instance.chats;
                   final chat = await chats.getChat(chatId);
                   final model = await context
                       .read<ChatCubit>()
                       .getModelForChat(chat.modelId);
-                  if (model != null) {
+                  if (model != null && context.mounted) {
                     context
                         .read<ChatCubit>()
-                        .initChat(chatId, model, chat.modelSettings ?? {});
+                        .initChat(chatId, model, chat.modelSettings);
                   }
                 },
                 onNewChat: (folderId) async {

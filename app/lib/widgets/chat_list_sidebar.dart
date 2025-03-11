@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:monkeychat/database/export_import.dart';
-import 'package:path_provider/path_provider.dart';
 import '../database/local_db.dart';
 import '../models/chat.dart';
 import '../models/llm.dart';
