@@ -6,14 +6,13 @@ import 'package:monkeychat/database/local_db.dart';
 import 'package:monkeychat/models/chat.dart';
 import 'package:monkeychat/models/folder.dart';
 import 'package:monkeychat/models/message.dart';
-import 'package:monkeychat/services/ai_provider.dart';
 import 'package:monkeychat/models/llm.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:monkeychat/services/model_service.dart';
+import 'package:monkeychat/services/ai_provider.dart';
 import 'dart:io';
 
 import "chat_state.dart";
-
-import "package:monkeychat/services/ai_provider_or.dart";
 
 extension StringExtension on String {
   String capitalize() {
@@ -22,15 +21,16 @@ extension StringExtension on String {
 }
 
 class ChatCubit extends Cubit<ChatState> {
-  final AIProvider provider = AIProviderOpenrouter();
+  late ModelService svc;
 
-  ChatCubit()
+  ChatCubit(ModelService modelSvc)
       : super(ChatState(
           selectedAttachmentPaths: [],
           selectedModel: null,
           modelSettings: {},
           isThinking: false, // Initialize isThinking to false
         )) {
+    svc = modelSvc;
     _loadLastChat();
   }
 
@@ -90,7 +90,6 @@ class ChatCubit extends Cubit<ChatState> {
       'top_p',
       'min_p',
       // TODO: add remainer
-
     ];
 
     for (final key in displayKeys) {
@@ -155,7 +154,7 @@ class ChatCubit extends Cubit<ChatState> {
     final chats = await LocalDb.instance.chats;
     final chatId = state.currentChatId;
 
-        print("bb");
+    print("bb");
 
     chats.updateParams(chatId, newParams);
     emit(state.copyWith(modelSettings: newParams, isThinking: false));
@@ -354,7 +353,8 @@ class ChatCubit extends Cubit<ChatState> {
   }
 
   Future<LLModel?> getModelForChat(String modelId) async {
-    final models = await provider.getModels();
+    final provider = svc.getProvider(ProviderType.openrouter);
+    final models = await provider!.getModels();
     return models.firstWhere((m) => m.id == modelId);
   }
 
@@ -399,7 +399,9 @@ class ChatCubit extends Cubit<ChatState> {
       final processedContext =
           state.contextCleared ? [userMessage.text] : finalContext;
 
-      final stream = provider.streamResponse(
+      final provider = svc.getProvider(ProviderType.openrouter);
+
+      final stream = provider!.streamResponse(
         state.selectedModel!.id,
         processedContext.join('\n'),
         state.modelSettings,

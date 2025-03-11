@@ -58,9 +58,9 @@ class AttachmentsCollection {
       // Fetch attachments to delete associated files (if needed)
       final attachments = await getAttachments(messageId);
       for (final attachment in attachments) {
-        if (attachment.isFilePath && attachment.data != null) {
+        if (attachment.isFilePath) {
           // Delete the file from the file system
-          final file = File(attachment.data!);
+          final file = File(attachment.data);
           if (await file.exists()) {
             await file.delete();
           }

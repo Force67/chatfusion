@@ -269,7 +269,7 @@ class AIProviderOpenrouter extends AIProvider {
     };
 
     // Prepare message content
-       List<Map<String, dynamic>> messages;
+    List<Map<String, dynamic>> messages;
     if (attachmentPaths != null && attachmentPaths.isNotEmpty) {
       // Add the text prompt if available
       List<Map<String, dynamic>> messageContent = [];
@@ -301,7 +301,10 @@ class AIProviderOpenrouter extends AIProvider {
       ];
     } else {
       messages = [
-        {'role': 'user', 'content': question} //content is now a normal string and *NOT* the attachment
+        {
+          'role': 'user',
+          'content': question
+        } //content is now a normal string and *NOT* the attachment
       ]; // Only text
     }
 
@@ -380,7 +383,7 @@ class AIProviderOpenrouter extends AIProvider {
     }
   }
 
-   @override
+  @override
   Future<BillingInfo?> fetchBilling() async {
     final apiKey = await _settingsService.getApiKey();
     if (apiKey == null) {
@@ -402,24 +405,28 @@ class AIProviderOpenrouter extends AIProvider {
 
         if (jsonResponse['data'] != null) {
           final data = jsonResponse['data'];
-      //    print(data);
+          //    print(data);
           final usage = (data['usage'] ?? 0).toDouble();
           final limit = (data['limit'] ?? 0).toDouble();
           final rateLimit = data['rate_limit']['requests'].toDouble() ?? 0.0;
-          return BillingInfo(
-            usage, limit, rateLimit
-          );
+          return BillingInfo(usage, limit, rateLimit);
         } else {
           print('Billing data not found in response.');
           return null;
         }
       } else {
-        print('Failed to fetch billing info. Status code: ${response.statusCode}, body: ${response.body}');
+        print(
+            'Failed to fetch billing info. Status code: ${response.statusCode}, body: ${response.body}');
         return null; // Or throw an exception depending on error handling strategy
       }
     } catch (e) {
       print('Error fetching billing info: $e');
       return null; // Or throw an exception
     }
+  }
+
+  @override
+  ProviderType type() {
+    return ProviderType.openrouter;
   }
 }

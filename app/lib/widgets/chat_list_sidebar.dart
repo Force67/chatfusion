@@ -6,7 +6,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
 import 'package:monkeychat/database/export_import.dart';
-import 'package:path_provider/path_provider.dart';
 import '../database/local_db.dart';
 import '../models/chat.dart';
 import '../models/llm.dart';
@@ -39,7 +38,7 @@ class ChatListSidebar extends StatefulWidget {
 class _ChatListSidebarState extends State<ChatListSidebar> {
   List<Folder> _folders = [];
   int? _selectedFolderId;
-  Map<int?, bool> _folderExpandedState = {}; // Track expanded state of folders
+  final Map<int?, bool> _folderExpandedState = {}; // Track expanded state of folders
 
   @override
   void initState() {
@@ -254,10 +253,9 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
         return Container(
           // Added Container with BoxDecoration
           decoration: BoxDecoration(
-            color: folder.hexColorCode != null &&
-                    folder.hexColorCode!.length == 7 &&
-                    folder.hexColorCode![0] == '#'
-                ? Color(int.parse(folder.hexColorCode!.substring(1, 7),
+            color: folder.hexColorCode.length == 7 &&
+                    folder.hexColorCode[0] == '#'
+                ? Color(int.parse(folder.hexColorCode.substring(1, 7),
                             radix: 16) +
                         0xFF000000)
                     .withOpacity(0.2)
@@ -440,12 +438,11 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
   }
 
   Color _getFolderIconColor(Folder folder) {
-    if (folder.hexColorCode != null &&
-        folder.hexColorCode!.length == 7 &&
-        folder.hexColorCode![0] == '#') {
+    if (folder.hexColorCode.length == 7 &&
+        folder.hexColorCode[0] == '#') {
       try {
         return Color(
-            int.parse(folder.hexColorCode!.substring(1, 7), radix: 16) +
+            int.parse(folder.hexColorCode.substring(1, 7), radix: 16) +
                 0xFF000000);
       } catch (e) {
         // Handle parsing errors, return a default color
@@ -468,10 +465,9 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
         return Container(
           // Added Container with BoxDecoration
           decoration: BoxDecoration(
-            color: folder.hexColorCode != null &&
-                    folder.hexColorCode!.length == 7 &&
-                    folder.hexColorCode![0] == '#'
-                ? Color(int.parse(folder.hexColorCode!.substring(1, 7),
+            color: folder.hexColorCode.length == 7 &&
+                    folder.hexColorCode[0] == '#'
+                ? Color(int.parse(folder.hexColorCode.substring(1, 7),
                             radix: 16) +
                         0xFF000000)
                     .withOpacity(0.2)
