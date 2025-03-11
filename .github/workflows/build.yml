@@ -24,9 +24,9 @@ jobs:
 
       - name: Setup Flutter environment for Linux and Android
         run: |
-          cd monkeychat && nix develop --command flutter doctor -v
+          cd app && nix develop --command flutter doctor -v
 
       - name: Build for Linux
         run: |
-          cd monkeychat && nix develop --command flutter build linux
+          cd app && nix develop --command flutter build linux
 
