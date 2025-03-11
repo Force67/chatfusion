@@ -26,7 +26,7 @@
           includeSources = true;
           includeSystemImages = false;
           includeNDK = false;
-          ndkVersion = "25.1.8937393";
+          ndkVersion =  "27.0.12077973";
           useGoogleAPIs = false;
           extraLicenses = [
             "android-sdk-license"
