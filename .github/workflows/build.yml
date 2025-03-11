@@ -36,3 +36,19 @@ jobs:
           cd app
           flutter build linux
 
+      - name: Build Android APK
+        run: |
+          cd app
+          flutter build apk --split-per-abi  # Splits APKs per ABI for smaller download sizes
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: linux-build
+          path: app/build/linux/x64/release/bundle
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: apk-build
+          path: app/build/app/outputs/flutter-apk/app-release.apk
