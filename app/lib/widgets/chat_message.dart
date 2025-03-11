@@ -438,16 +438,29 @@ class _ChatMessageState extends State<ChatMessage> {
   Widget _buildAttachmentDisplay(BuildContext context, Attachment attachment) {
     if (attachment.mimeType.startsWith('image/')) {
       Widget imageWidget;
-      if (attachment.isFilePath) {
-        imageWidget = Image.file(File(attachment.data));
-      } else {
+
+      // Check if filePath is available
+      if (attachment.filePath != null && attachment.filePath!.isNotEmpty) {
         try {
-          final decodedBytes = base64Decode(attachment.data);
+          imageWidget = Image.file(File(attachment.filePath!));
+        } catch (e) {
+          print("Error loading image from file path: $e");
+          return const Text("Error displaying image");
+        }
+      }
+      // Check if fileData is available
+      else if (attachment.fileData != null && attachment.fileData!.isNotEmpty) {
+        try {
+          final decodedBytes = base64Decode(attachment.fileData!);
           imageWidget = Image.memory(decodedBytes);
         } catch (e) {
           print("Error decoding base64 image: $e");
           return const Text("Error displaying image");
         }
+      }
+      // Neither filePath nor fileData is available
+      else {
+        return const Text("No image data available");
       }
 
       return Padding(

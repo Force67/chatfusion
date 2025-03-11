@@ -17,8 +17,8 @@ class AttachmentsCollection {
           'attachment_id',
           'message_id',
           'mime_type',
-          'data',
-          'is_file_path',
+          'file_path',
+          'file_data',
           'created_at',
         ],
         where: 'message_id = ?',
@@ -41,8 +41,8 @@ class AttachmentsCollection {
           'attachment_id': attachment.attachmentId,
           'message_id': attachment.messageId,
           'mime_type': attachment.mimeType,
-          'data': attachment.data,
-          'is_file_path': attachment.isFilePath ? 1 : 0,
+          'file_path': attachment.filePath,
+          'file_data': attachment.fileData,
           'created_at': DateTime.now().toIso8601String(),
         },
       );
@@ -58,9 +58,9 @@ class AttachmentsCollection {
       // Fetch attachments to delete associated files (if needed)
       final attachments = await getAttachments(messageId);
       for (final attachment in attachments) {
-        if (attachment.isFilePath) {
+        if (attachment.filePath != null && attachment.filePath!.isNotEmpty) {
           // Delete the file from the file system
-          final file = File(attachment.data);
+          final file = File(attachment.filePath!);
           if (await file.exists()) {
             await file.delete();
           }

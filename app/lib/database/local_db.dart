@@ -2,17 +2,17 @@ import 'package:flutter/foundation.dart';
 import 'package:monkeychat/database/attachments_collection.dart';
 import 'package:monkeychat/database/folder_collection.dart';
 import 'package:monkeychat/database/message_collection.dart';
+import 'package:monkeychat/models/folder.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/llm.dart';
 import 'dart:convert';
-
 import 'chat_collection.dart';
 
 class LocalDb {
   static final LocalDb instance = LocalDb._private();
   static Database? _database;
-  static const int _version = 4;
+  static const int _version = 5; // Incremented version for schema changes
 
   Database? _cachedDb;
   ChatCollection? _chatCollection;
@@ -71,14 +71,13 @@ class LocalDb {
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    // Parent_id is optional
     await db.execute('''
       CREATE TABLE folders(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         parent_id INTEGER,
         name TEXT NOT NULL,
+        hashed_password TEXT, -- May be null, salted and encrypted,
         color_code TEXT NOT NULL, -- Hex color code
-        hashed_password TEXT, -- May be null, salted and encrypted
         created_at TEXT NOT NULL
       );
     ''');
@@ -94,10 +93,6 @@ class LocalDb {
       );
     ''');
 
-    // Text may not be null, but empty is fine, for instance if the user only
-    // sends a "message" with an image
-    // as for type, 0 is user, 1 is bot, 2 is system
-    // "attachment_paths" contains a list of paths to images or other attachments
     await db.execute('''
       CREATE TABLE messages(
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -110,28 +105,15 @@ class LocalDb {
       );
     ''');
 
-    // data may include the attachment (if its small enough, else it will point
-    // to a physical file)
-    // the mime type is important for the client to know how to handle the data
     await db.execute('''
-    CREATE TABLE attachments (
-      attachment_id TEXT PRIMARY KEY,
-      message_id INTEGER NOT NULL,
-      mime_type TEXT NOT NULL,
-      is_file_path INTEGER NOT NULL DEFAULT 0,  -- 0 = data, 1 = file path
-      data TEXT,
-      file_data TEXT, -- New column for Base64-encoded data
-      created_at TEXT NOT NULL,
-      FOREIGN KEY (message_id) REFERENCES messages(id)
-    );
-  ''');
-
-    // Models are cached for offline use based on the initial provided data
-    await db.execute('''
-      CREATE TABLE cached_models(
-        model_id TEXT PRIMARY KEY,
-        data TEXT NOT NULL,
-        cached_at TEXT NOT NULL
+      CREATE TABLE attachments (
+        attachment_id TEXT PRIMARY KEY,
+        message_id INTEGER NOT NULL,
+        mime_type TEXT NOT NULL,
+        file_path TEXT, -- Path to the file (if stored as a file)
+        file_data TEXT, -- Base64-encoded data (if stored as text)
+        created_at TEXT NOT NULL,
+        FOREIGN KEY (message_id) REFERENCES messages(id)
       );
     ''');
 
@@ -147,20 +129,42 @@ class LocalDb {
       );
     ''');
 
+    await db.execute('''
+      CREATE TABLE cached_models(
+        model_id TEXT PRIMARY KEY,
+        data TEXT NOT NULL,
+        cached_at TEXT NOT NULL
+      );
+    ''');
+
     if (kDebugMode) {
       print("Created database tables");
     }
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 5) {
+      // Migration to version 5
+      await db.execute('DROP TABLE IF EXISTS attachments');
+      await db.execute('''
+        CREATE TABLE attachments (
+          attachment_id TEXT PRIMARY KEY,
+          message_id INTEGER NOT NULL,
+          mime_type TEXT NOT NULL,
+          file_path TEXT, -- Path to the file (if stored as a file)
+          file_data TEXT, -- Base64-encoded data (if stored as text)
+          created_at TEXT NOT NULL,
+          FOREIGN KEY (message_id) REFERENCES messages(id)
+        );
+      ''');
+    }
+
     if (oldVersion < 4) {
       await db.execute('ALTER TABLE attachments ADD COLUMN file_data TEXT');
     }
 
     if (oldVersion < 3) {
-      // Proper migration to version 3
       await db.execute('DROP TABLE IF EXISTS folders');
-
       await db.execute('''
         CREATE TABLE folders(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -171,19 +175,14 @@ class LocalDb {
     }
   }
 
-  // Updated clear methods to handle schema changes
   Future<void> clearAll({bool deleteFolders = true}) async {
-    //TODO: replace Placeholder boolean and actual implementation in GUI
     final db = await instance.database;
     await db.transaction((txn) async {
-      // 2. Delete all chats and messages
       await txn.delete('chats');
       await txn.delete('messages');
       await txn.delete('cached_models');
 
-      // 3. Optionally delete all folders
       if (deleteFolders) {
-        // Ensure you delete from 'folders' AFTER deleting relationships from 'folders_to_chats'
         await txn.delete('folders');
       }
     });
@@ -197,7 +196,6 @@ class LocalDb {
     });
   }
 
-  // Improved model caching with transaction
   Future<void> cacheModels(List<LLModel> models) async {
     final db = await instance.database;
     await db.transaction((txn) async {

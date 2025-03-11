@@ -38,8 +38,8 @@ class ExportImport {
           final attachmentMap = attachment.toMap();
 
           // If the attachment is a file, encode its content as Base64
-          if (attachment.isFilePath) {
-            final file = File(attachment.data);
+          if (attachment.filePath != null && attachment.filePath!.isNotEmpty) {
+            final file = File(attachment.filePath!);
             if (await file.exists()) {
               final fileBytes = await file.readAsBytes();
               attachmentMap['file_data'] =
@@ -103,7 +103,7 @@ class ExportImport {
           );
 
           // If the attachment is a file, decode the Base64 data and save it to a new file
-          if (attachment.isFilePath &&
+          if (attachment.filePath != null &&
               attachmentData['file_data'] != null &&
               attachmentData['file_data'].isNotEmpty) {
             try {
@@ -124,7 +124,7 @@ class ExportImport {
               await file.writeAsBytes(fileBytes);
 
               // Update the attachment with the new file path
-              attachment = attachment.copyWith(data: filePath);
+              attachment = attachment.copyWith(filePath: filePath);
             } catch (e) {
               debugPrint('Error decoding base64 image: $e');
               debugPrint(

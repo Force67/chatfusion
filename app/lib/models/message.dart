@@ -57,9 +57,8 @@ class Message {
       'created_at': createdAt.toIso8601String(),
       'attachment_ids': attachments.map((a) => a.attachmentId).join(','),
       'mime_types': attachments.map((a) => a.mimeType).join(','),
-      'attachment_data': attachments.map((a) => a.data).join(','),
-      'is_file_paths':
-          attachments.map((a) => a.isFilePath ? '1' : '0').join(','),
+      'file_paths': attachments.map((a) => a.filePath).join(','),
+      'file_data': attachments.map((a) => a.fileData ?? '').join(','),
     };
   }
 
@@ -84,17 +83,25 @@ class Message {
         (map['attachment_ids'] as String).isNotEmpty) {
       List<String> attachmentIds = (map['attachment_ids'] as String).split(',');
       List<String> mimeTypes = (map['mime_types'] as String).split(',');
-      List<String> attachmentData =
-          (map['attachment_data'] as String).split(',');
-      List<String> isFilePaths = (map['is_file_paths'] as String).split(',');
+
+      // Handle null for file_paths and file_data
+      List<String> filePaths = (map['file_paths'] as String?)?.split(',') ?? [];
+      List<String> fileData = (map['file_data'] as String?)?.split(',') ?? [];
 
       for (int i = 0; i < attachmentIds.length; i++) {
+        String? currentFilePath =
+            i < filePaths.length && filePaths[i].isNotEmpty
+                ? filePaths[i]
+                : null;
+        String? currentFileData =
+            i < fileData.length && fileData[i].isNotEmpty ? fileData[i] : null;
+
         attachmentsList.add(Attachment(
           attachmentId: attachmentIds[i],
           messageId: messageId, // Pass the messageId here
           mimeType: mimeTypes[i],
-          data: attachmentData[i],
-          isFilePath: isFilePaths[i] == '1',
+          filePath: currentFilePath,
+          fileData: currentFileData,
         ));
       }
     }
