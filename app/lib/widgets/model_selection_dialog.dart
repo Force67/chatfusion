@@ -28,6 +28,7 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
   String _searchQuery = '';
   bool _filterByReasoning = false;
   bool _filterByImageInput = false;
+  bool _filterByFree = false;
   final _cacheManager = CacheManager(Config('svg_cache',
       maxNrOfCacheObjects: 20, stalePeriod: const Duration(days: 7)));
 
@@ -43,7 +44,7 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
     });
   }
 
-    @override
+  @override
   Widget build(BuildContext context) {
     return Dialog(
       child: ConstrainedBox(
@@ -90,6 +91,14 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
                           _filterByImageInput = value;
                         }),
                       ),
+                      const SizedBox(width: 8),
+                      FilterChip(
+                        label: const Text('Is free'),
+                        selected: _filterByFree,
+                        onSelected: (value) => setState(() {
+                          _filterByFree = value;
+                        }),
+                      ),
                     ],
                   ),
                 ],
@@ -124,34 +133,46 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
     );
   }
 
-   Widget _buildModelList(List<LLModel> models, Set<String> pinnedModelIds) {
+  Widget _buildModelList(List<LLModel> models, Set<String> pinnedModelIds) {
     final filteredPinned = models
         .where((model) =>
-            pinnedModelIds.contains(model.id) &&
-            (model.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                model.provider
-                    .toLowerCase()
-                    .contains(_searchQuery.toLowerCase()) ||
-                model.description
-                    .toLowerCase()
-                    .contains(_searchQuery.toLowerCase())) &&
-            (!_filterByReasoning || model.supportsReasoning) &&
-            (!_filterByImageInput || model.supportsImageInput))
+                pinnedModelIds.contains(model.id) &&
+                (model.name
+                        .toLowerCase()
+                        .contains(_searchQuery.toLowerCase()) ||
+                    model.provider
+                        .toLowerCase()
+                        .contains(_searchQuery.toLowerCase()) ||
+                    model.description
+                        .toLowerCase()
+                        .contains(_searchQuery.toLowerCase())) &&
+                (!_filterByReasoning || model.capabilities.supportsReasoning) &&
+                (!_filterByImageInput ||
+                    model.capabilities.supportsImageInput) &&
+                (!_filterByFree ||
+                    model.pricing.isFree == true) // Add free filter here
+            )
         .toList()
       ..sort((a, b) => a.name.compareTo(b.name));
 
     final filteredOthers = models
         .where((model) =>
-            !pinnedModelIds.contains(model.id) &&
-            (model.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                model.provider
-                    .toLowerCase()
-                    .contains(_searchQuery.toLowerCase()) ||
-                model.description
-                    .toLowerCase()
-                    .contains(_searchQuery.toLowerCase())) &&
-            (!_filterByReasoning || model.supportsReasoning) &&
-            (!_filterByImageInput || model.supportsImageInput))
+                !pinnedModelIds.contains(model.id) &&
+                (model.name
+                        .toLowerCase()
+                        .contains(_searchQuery.toLowerCase()) ||
+                    model.provider
+                        .toLowerCase()
+                        .contains(_searchQuery.toLowerCase()) ||
+                    model.description
+                        .toLowerCase()
+                        .contains(_searchQuery.toLowerCase())) &&
+                (!_filterByReasoning || model.capabilities.supportsReasoning) &&
+                (!_filterByImageInput ||
+                    model.capabilities.supportsImageInput) &&
+                (!_filterByFree ||
+                    model.pricing.isFree == true) // Add free filter here
+            )
         .toList()
       ..sort((a, b) => a.name.compareTo(b.name));
 
@@ -190,29 +211,29 @@ class _ModelSelectionDialogState extends State<ModelSelectionDialog> {
         children: [
           Text(model.provider),
           Text(model.description, maxLines: 2, overflow: TextOverflow.ellipsis),
-            Row(
-              children: [
-                if (model.supportsImageInput) ...[
-                  Tooltip(
-                    message: 'Supports Image Input',
-                    child: const Icon(Icons.add_a_photo, size: 16),
-                  ),
-                  const SizedBox(width: 4),
-                ],
-                if (model.supportsImageOutput) ...[
-                  Tooltip(
-                    message: 'Supports Image Output',
-                    child: const Icon(Icons.image, size: 16),
-                  ),
-                  const SizedBox(width: 4),
-                ],
-                if (model.supportsReasoning)
-                  Tooltip(
-                    message: 'Supports Reasoning',
-                    child: const Icon(Icons.lightbulb, size: 16),
-                  ),
+          Row(
+            children: [
+              if (model.capabilities.supportsImageInput) ...[
+                Tooltip(
+                  message: 'Supports Image Input',
+                  child: const Icon(Icons.add_a_photo, size: 16),
+                ),
+                const SizedBox(width: 4),
               ],
-            ),
+              if (model.capabilities.supportsImageOutput) ...[
+                Tooltip(
+                  message: 'Supports Image Output',
+                  child: const Icon(Icons.image, size: 16),
+                ),
+                const SizedBox(width: 4),
+              ],
+              if (model.capabilities.supportsReasoning)
+                Tooltip(
+                  message: 'Supports Reasoning',
+                  child: const Icon(Icons.lightbulb, size: 16),
+                ),
+            ],
+          ),
         ],
       ),
       trailing: Row(

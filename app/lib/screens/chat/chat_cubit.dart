@@ -282,7 +282,8 @@ class ChatCubit extends Cubit<ChatState> {
     // But only for parameters that are actually available to modify (as provided by the API)
     // The default values
     Map<String, dynamic> newModelSettings = {};
-    for (var settingName in state.selectedModel!.tunableParameters) {
+    for (var settingName
+        in state.selectedModel!.capabilities.tunableParameters) {
       newModelSettings[settingName] = _findDefaultValueForParam(settingName);
     }
 

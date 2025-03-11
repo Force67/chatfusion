@@ -338,12 +338,12 @@ class _Input extends StatelessWidget {
                       }
 
                       final FileType fileType =
-                          state.selectedModel!.supportsImageInput
+                          state.selectedModel!.capabilities.supportsImageInput
                               ? FileType.image
                               : FileType.any; // Allow any file type
 
                       final List<String>? allowedExtensions =
-                          state.selectedModel!.supportsImageInput
+                          state.selectedModel!.capabilities.supportsImageInput
                               ? null
                               : null; //Allow any extension
 
