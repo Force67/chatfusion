@@ -1,8 +1,12 @@
+import 'dart:io';
 import 'dart:math';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_colorpicker/flutter_colorpicker.dart';
+import 'package:monkeychat/database/export_import.dart';
+import 'package:path_provider/path_provider.dart';
 import '../database/local_db.dart';
 import '../models/chat.dart';
 import '../models/llm.dart';
@@ -181,26 +185,32 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                 ),
               ),
             ),
-                 const Divider(), // Visual separator before the stats button
+            const Divider(), // Visual separator before the stats button
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
               child: ListTile(
                 leading: const Icon(Icons.insert_chart), // Stats icon
                 title: const Text('Stats'),
                 onTap: () {
                   Navigator.push(
                     context,
-                     MaterialPageRoute(
+                    MaterialPageRoute(
                       builder: (context) => BlocProvider(
-                        create: (context) => BillingCubit(aiProvider: AIProviderOpenrouter()),
+                        create: (context) =>
+                            BillingCubit(aiProvider: AIProviderOpenrouter()),
                         child: StatsOverview(),
                       ),
                     ),
                   );
                 },
                 //style: ListTileStyle.listitem,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                tileColor: Theme.of(context).colorScheme.secondaryContainer.withOpacity(0.3),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10)),
+                tileColor: Theme.of(context)
+                    .colorScheme
+                    .secondaryContainer
+                    .withOpacity(0.3),
               ),
             ),
           ],
@@ -291,6 +301,14 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                           child: Text('Delete'),
                         ),
                         const PopupMenuItem(
+                          value: 'export',
+                          child: Text('Export Folder'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'import',
+                          child: Text('Import into Folder'),
+                        ),
+                        const PopupMenuItem(
                           value: 'create_subfolder',
                           child: Text('Create subfolder'),
                         ),
@@ -300,6 +318,10 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                           _renameFolder(context, folder);
                         } else if (value == 'delete') {
                           _confirmDeleteFolder(context, folder);
+                        } else if (value == 'export') {
+                          _exportFolder(context, folder);
+                        } else if (value == 'import') {
+                          await _importChats(context, folder.id!);
                         } else if (value == 'create_subfolder') {
                           _createFolder(context, parentFolderId: folder.id);
                         }
@@ -329,6 +351,91 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
         );
       }).toList(),
     );
+  }
+
+  Future<void> _exportFolder(BuildContext context, Folder folder) async {
+    final exportImport = ExportImport();
+    try {
+      // Export all chats in the folder
+      final jsonString = await exportImport.exportChatsToJson(folder.id!);
+
+      // Allow the user to choose the export path
+      final String? selectedDirectory =
+          await FilePicker.platform.getDirectoryPath();
+
+      if (selectedDirectory == null) {
+        // User canceled the file picker
+        return;
+      }
+
+      // Save the JSON string to the chosen file
+      final filePath =
+          '$selectedDirectory/export_folder_${folder.name}_${DateTime.now().millisecondsSinceEpoch}.json';
+      final file = File(filePath);
+      await file.writeAsString(jsonString);
+
+      // Show a success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Folder exported to $filePath'),
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error exporting folder: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _importChats(BuildContext context, int folderId) async {
+    try {
+      // Allow the user to select a file for import
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+
+      if (result == null || result.files.single.path == null) {
+        // User canceled the file picker
+        return;
+      }
+
+      // Read the selected file
+      final file = File(result.files.single.path!);
+      final jsonString = await file.readAsString();
+
+      // Import the chats into the selected folder
+      final exportImport = ExportImport();
+      await exportImport.importChatsFromJson(jsonString, folderId);
+
+      // Show a success message
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Chats imported successfully into the folder'),
+          ),
+        );
+      }
+
+      // Refresh the UI
+      await _loadFolders();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error importing chats: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Color _getFolderIconColor(Folder folder) {
@@ -405,12 +512,30 @@ class _ChatListSidebarState extends State<ChatListSidebar> {
                           value: 'delete',
                           child: Text('Delete'),
                         ),
+                        const PopupMenuItem(
+                          value: 'export',
+                          child: Text('Export Folder'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'import',
+                          child: Text('Import into Folder'),
+                        ),
+                        const PopupMenuItem(
+                          value: 'create_subfolder',
+                          child: Text('Create subfolder'),
+                        ),
                       ],
                       onSelected: (value) async {
                         if (value == 'rename') {
                           _renameFolder(context, folder);
                         } else if (value == 'delete') {
                           _confirmDeleteFolder(context, folder);
+                        } else if (value == 'export') {
+                          _exportFolder(context, folder);
+                        } else if (value == 'import') {
+                          await _importChats(context, folder.id!);
+                        } else if (value == 'create_subfolder') {
+                          _createFolder(context, parentFolderId: folder.id);
                         }
                       },
                     ),

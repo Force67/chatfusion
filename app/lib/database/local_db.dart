@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:monkeychat/database/attachments_collection.dart';
 import 'package:monkeychat/database/folder_collection.dart';
 import 'package:monkeychat/database/message_collection.dart';
 import 'package:sqflite/sqflite.dart';
@@ -11,12 +12,13 @@ import 'chat_collection.dart';
 class LocalDb {
   static final LocalDb instance = LocalDb._private();
   static Database? _database;
-  static const int _version = 3; // Updated version
+  static const int _version = 4;
 
   Database? _cachedDb;
   ChatCollection? _chatCollection;
   FolderCollection? _folderCollection;
   MessageCollection? _messageCollection;
+  AttachmentsCollection? _attachmentsCollection;
 
   LocalDb._private();
 
@@ -45,6 +47,12 @@ class LocalDb {
     return _folderCollection!;
   }
 
+  Future<AttachmentsCollection> get attachments async {
+    final db = _cachedDb ?? await database;
+    _attachmentsCollection ??= AttachmentsCollection(db);
+    return _attachmentsCollection!;
+  }
+
   Future<Database> _initDatabase() async {
     final path = join(await getDatabasesPath(), 'chat_database.db');
     if (kDebugMode) {
@@ -57,7 +65,6 @@ class LocalDb {
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
       onConfigure: (db) async {
-        // Enable foreign key constraints
         await db.execute('PRAGMA foreign_keys = ON');
       },
     );
@@ -106,16 +113,17 @@ class LocalDb {
     // to a physical file)
     // the mime type is important for the client to know how to handle the data
     await db.execute('''
-      CREATE TABLE attachments (
-        attachment_id TEXT PRIMARY KEY,
-        message_id INTEGER NOT NULL,
-        mime_type TEXT NOT NULL,
-        is_file_path INTEGER NOT NULL DEFAULT 0,  -- 0 = data, 1 = file path
-        data TEXT,
-        created_at TEXT NOT NULL,
-        FOREIGN KEY (message_id) REFERENCES messages(id)
-      );
-    ''');
+    CREATE TABLE attachments (
+      attachment_id TEXT PRIMARY KEY,
+      message_id INTEGER NOT NULL,
+      mime_type TEXT NOT NULL,
+      is_file_path INTEGER NOT NULL DEFAULT 0,  -- 0 = data, 1 = file path
+      data TEXT,
+      file_data TEXT, -- New column for Base64-encoded data
+      created_at TEXT NOT NULL,
+      FOREIGN KEY (message_id) REFERENCES messages(id)
+    );
+  ''');
 
     // Models are cached for offline use based on the initial provided data
     await db.execute('''
@@ -144,6 +152,10 @@ class LocalDb {
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 4) {
+      await db.execute('ALTER TABLE attachments ADD COLUMN file_data TEXT');
+    }
+
     if (oldVersion < 3) {
       // Proper migration to version 3
       await db.execute('DROP TABLE IF EXISTS folders');

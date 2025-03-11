@@ -50,4 +50,22 @@ class Chat {
       'params': jsonEncode(modelSettings),
     };
   }
+
+  Chat copyWith({
+    int? id,
+    int? folderId,
+    String? title,
+    String? modelId,
+    DateTime? createdAt,
+    Map<String, dynamic>? modelSettings,
+  }) {
+    return Chat(
+      id: id ?? this.id,
+      folderId: folderId ?? this.folderId,
+      title: title ?? this.title,
+      modelId: modelId ?? this.modelId,
+      createdAt: createdAt ?? this.createdAt,
+      modelSettings: modelSettings ?? this.modelSettings,
+    );
+  }
 }

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:flutter/services.dart';
+import 'package:monkeychat/models/attachment.dart';
 import 'package:monkeychat/models/message.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -31,8 +32,7 @@ class CodeBlockBuilder extends MarkdownElementBuilder {
   Widget? visitText(md.Text text, TextStyle? style) {
     // Return code as plain text, not LaTeX
     return Text(
-      text
-      .text,
+      text.text,
       style: GoogleFonts.robotoMono(
         color: Colors.lightGreenAccent,
         fontSize: 14,
@@ -59,12 +59,15 @@ class MathTextBuilder extends MarkdownElementBuilder {
   }
 
   bool _containsMathSyntax(String text) {
-    return text.contains(r'\[') || text.contains(r'\]') ||
-           text.contains(r'$$') ||
-           // Check for single dollar signs with more specific pattern to avoid false positives
-           (text.contains(r'$') && RegExp(r'\$[^$\s][^$]*\$').hasMatch(text)) ||
-           text.contains(r'\sum') || text.contains(r'\frac') ||
-           text.contains(r'\pi') || text.contains(r'\infty');
+    return text.contains(r'\[') ||
+        text.contains(r'\]') ||
+        text.contains(r'$$') ||
+        // Check for single dollar signs with more specific pattern to avoid false positives
+        (text.contains(r'$') && RegExp(r'\$[^$\s][^$]*\$').hasMatch(text)) ||
+        text.contains(r'\sum') ||
+        text.contains(r'\frac') ||
+        text.contains(r'\pi') ||
+        text.contains(r'\infty');
   }
 
   Widget _buildRichText(String content, TextStyle? style) {
@@ -159,6 +162,9 @@ class MathTextBuilder extends MarkdownElementBuilder {
     int closeCount = 0;
 
     for (int i = 0; i < tex.length; i++) {
+      if (tex[i] == '{')
+        openCount++;
+      else if (tex[i] == '}') closeCount++;
       if (tex[i] == '{') {
         openCount++;
       } else if (tex[i] == '}') closeCount++;
@@ -214,7 +220,8 @@ class MathTextBuilder extends MarkdownElementBuilder {
   void visitElementBefore(md.Element element) {}
 
   @override
-  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) => null;
+  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) =>
+      null;
 
   @override
   Widget? visitElementAfterWithContext(
@@ -222,7 +229,8 @@ class MathTextBuilder extends MarkdownElementBuilder {
     md.Element element,
     TextStyle? preferredStyle,
     TextStyle? parentStyle,
-  ) => null;
+  ) =>
+      null;
 }
 
 // Special handler for display math blocks
@@ -315,6 +323,9 @@ class DisplayMathBuilder extends MarkdownElementBuilder {
     int closeCount = 0;
 
     for (int i = 0; i < tex.length; i++) {
+      if (tex[i] == '{')
+        openCount++;
+      else if (tex[i] == '}') closeCount++;
       if (tex[i] == '{') {
         openCount++;
       } else if (tex[i] == '}') closeCount++;
@@ -363,7 +374,8 @@ class DisplayMathBuilder extends MarkdownElementBuilder {
   void visitElementBefore(md.Element element) {}
 
   @override
-  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) => null;
+  Widget? visitElementAfter(md.Element element, TextStyle? preferredStyle) =>
+      null;
 
   @override
   Widget? visitElementAfterWithContext(
@@ -371,7 +383,8 @@ class DisplayMathBuilder extends MarkdownElementBuilder {
     md.Element element,
     TextStyle? preferredStyle,
     TextStyle? parentStyle,
-  ) => null;
+  ) =>
+      null;
 }
 
 String parseEmojis(String text) {
@@ -492,31 +505,30 @@ class _ChatMessageState extends State<ChatMessage> {
   String _preprocessDisplayMath(String text) {
     // Convert \[ ... \] to ```math ... ``` for special handling
     // This makes it easy to identify display math in the Markdown renderer
-    return text.replaceAllMapped(
-      RegExp(r'\\\[([\s\S]*?)\\\]', dotAll: true),
-      (match) => '\n```math\n${match.group(1)}\n```\n'
-    );
+    return text.replaceAllMapped(RegExp(r'\\\[([\s\S]*?)\\\]', dotAll: true),
+        (match) => '\n```math\n${match.group(1)}\n```\n');
   }
 
   @override
   Widget build(BuildContext context) {
     // Create custom Markdown renderers
     final Map<String, MarkdownElementBuilder> builders = {
-        'p': MathTextBuilder(),
-        'text': MathTextBuilder(),
-        'code': MathTextBuilder(), // For inline code
-        // Special handling for different block types
-        'pre': DisplayMathBuilder(), // For math blocks with special formatting
-        // Add specific handler for code blocks
-        'code_block': CodeBlockBuilder(), // For code blocks with syntax highlighting
-      };
+      'p': MathTextBuilder(),
+      'text': MathTextBuilder(),
+      'code': MathTextBuilder(), // For inline code
+      // Special handling for different block types
+      'pre': DisplayMathBuilder(), // For math blocks with special formatting
+      // Add specific handler for code blocks
+      'code_block':
+          CodeBlockBuilder(), // For code blocks with syntax highlighting
+    };
 
     String processedText = _preprocessText(widget.text);
     String? processedReasoning =
         widget.reasoning != null ? _preprocessText(widget.reasoning!) : null;
 
-    final markdownStyleSheet = MarkdownStyleSheet.fromTheme(Theme.of(context))
-        .copyWith(
+    final markdownStyleSheet =
+        MarkdownStyleSheet.fromTheme(Theme.of(context)).copyWith(
       p: GoogleFonts.roboto(color: Colors.white),
       a: GoogleFonts.roboto(color: Colors.lightBlueAccent),
       code: GoogleFonts.robotoMono(color: Colors.yellowAccent),
@@ -584,8 +596,8 @@ class _ChatMessageState extends State<ChatMessage> {
                       Column(
                         children: [
                           InkWell(
-                            onTap: () =>
-                                setState(() => _showReasoning = !_showReasoning),
+                            onTap: () => setState(
+                                () => _showReasoning = !_showReasoning),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [

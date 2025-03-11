@@ -102,7 +102,7 @@ class MessageCollection {
     ''', [chatId]);
 
     return maps.map((map) {
-      return Message.fromMapWithAttachments(map);
+      return Message.fromMapWithAttachments(map, messageId: chatId);
     }).toList();
   }
 }
