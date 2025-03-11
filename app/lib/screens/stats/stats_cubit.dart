@@ -1,6 +1,5 @@
 import 'package:bloc/bloc.dart';
 import '../../services/ai_provider.dart';
-import '../../models/llm.dart';
 
 part 'stats_state.dart';
 
@@ -16,7 +15,8 @@ class BillingCubit extends Cubit<BillingState> {
       if (billingInfo != null) {
         emit(BillingLoaded(billingInfo));
       } else {
-        emit(BillingError("Billing information not available.")); // Handle null case explicitly
+        emit(BillingError(
+            "Billing information not available.")); // Handle null case explicitly
       }
     } catch (e) {
       emit(BillingError("Failed to fetch billing info: ${e.toString()}"));

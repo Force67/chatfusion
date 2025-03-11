@@ -17,8 +17,10 @@ class ChatState {
   final String? errorMessage;
   final bool chatsDeleted;
   final bool isThinking;
+  //final int msgsSinceLastSummary;
 
   ChatState({
+    // required this.modelSvc,
     this.currentChatId = -1,
     this.isNewChat = false,
     required this.selectedModel,

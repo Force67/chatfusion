@@ -20,7 +20,17 @@ class BillingInfo {
   BillingInfo(this.usage, this.limit, this.maxRequests);
 }
 
+enum ProviderType {
+  // Fake deterministic provider, for testing
+  mockProvider,
+
+  // OpenRouter (see: https://openrouter.ai)
+  openrouter,
+}
+
 abstract class AIProvider {
+  ProviderType type();
+
   // Returns a list of available models
   Future<List<LLModel>> getModels({bool forceRefresh = false});
 

@@ -9,6 +9,7 @@ import 'package:monkeychat/screens/settings/settings_cubit.dart';
 import 'package:monkeychat/database/local_db.dart';
 
 import 'package:monkeychat/models/message.dart';
+import 'package:monkeychat/services/model_service.dart';
 import 'package:monkeychat/widgets/chat_message.dart';
 import 'package:monkeychat/services/settings_service.dart';
 import 'package:monkeychat/services/ai_provider_or.dart';
@@ -147,8 +148,9 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final modelSVC = context.read<ModelService>();
     return BlocProvider(
-      create: (context) => ChatCubit(),
+      create: (context) => ChatCubit(modelSVC),
       child: BlocConsumer<ChatCubit, ChatState>(
         listener: (context, state) {
           if (state.errorMessage != null) {
@@ -186,15 +188,16 @@ class _ChatScreenState extends State<ChatScreen> {
               child: ChatListSidebar(
                 currentChatId: state.currentChatId,
                 onChatSelected: (chatId) async {
+                  if (!mounted) return;
                   final chats = await LocalDb.instance.chats;
                   final chat = await chats.getChat(chatId);
                   final model = await context
                       .read<ChatCubit>()
                       .getModelForChat(chat.modelId);
-                  if (model != null) {
+                  if (model != null && context.mounted) {
                     context
                         .read<ChatCubit>()
-                        .initChat(chatId, model, chat.modelSettings ?? {});
+                        .initChat(chatId, model, chat.modelSettings);
                   }
                 },
                 onNewChat: (folderId) async {
@@ -335,12 +338,12 @@ class _Input extends StatelessWidget {
                       }
 
                       final FileType fileType =
-                          state.selectedModel!.supportsImageInput
+                          state.selectedModel!.capabilities.supportsImageInput
                               ? FileType.image
                               : FileType.any; // Allow any file type
 
                       final List<String>? allowedExtensions =
-                          state.selectedModel!.supportsImageInput
+                          state.selectedModel!.capabilities.supportsImageInput
                               ? null
                               : null; //Allow any extension
 

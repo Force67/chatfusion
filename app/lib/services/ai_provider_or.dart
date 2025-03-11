@@ -90,6 +90,18 @@ class AIProviderOpenrouter extends AIProvider {
     return config;
   }
 
+  double _safeDouble(dynamic value) {
+    if (value is num) {
+      return value
+          .toDouble(); // Already a number, just convert to double if needed
+    }
+    if (value is String) {
+      return double.tryParse(value) ??
+          0.0; // PARSE from String and default to 0.0 if parsing fails
+    }
+    return 0.0; // Default for anything else (null, unexpected types)
+  }
+
   final List<String> additionalKnownReasoningModels = [
     // *SOME* AI Vendors insist on not showing the COT
     "deepseek/deepseek-r1",
@@ -109,7 +121,7 @@ class AIProviderOpenrouter extends AIProvider {
       final shortName = json['short_name'];
       final descriptionJson = json['description'];
       final endpoint = json['endpoint'];
-      final capabilities = json['modality'];
+      final modalityCaps = json['modality'];
 
       // Validate required fields
       if (permaslug == null) {
@@ -121,7 +133,7 @@ class AIProviderOpenrouter extends AIProvider {
       if (descriptionJson == null) {
         throw ArgumentError('description is missing');
       }
-      if (capabilities == null) {
+      if (modalityCaps == null) {
         throw ArgumentError('modality is missing');
       }
 
@@ -146,7 +158,7 @@ class AIProviderOpenrouter extends AIProvider {
         }
       }
 
-      ORModelCapabilities modelCapabilities = _decodeCapabilities(capabilities);
+      ORModelCapabilities orModelCaps = _decodeCapabilities(modalityCaps);
 
       List<String> supportedParams = [];
       if (endpoint != null && endpoint.containsKey('supported_parameters')) {
@@ -176,18 +188,50 @@ class AIProviderOpenrouter extends AIProvider {
 
       final provider = endpoint['provider_info']['name'];
 
+      final LLMCapabilities capabilities = LLMCapabilities(
+          supportsImageInput: orModelCaps.supportsImageInput,
+          supportsImageOutput: orModelCaps.supportsImageOutput,
+          supportsReasoning: doesReasoning,
+          supportsReasoningDisplay: endpoint["supports_reasoning"],
+          tunableParameters: supportedParams);
+
+      final orModelPrice = endpoint["pricing"];
+      LLMPricing pricing;
+      if (orModelPrice != null && orModelPrice is Map<String, dynamic>) {
+        pricing = LLMPricing(
+            prompt: _safeDouble(orModelPrice["prompt"]),
+            completion: _safeDouble(orModelPrice["completion"]),
+            request: _safeDouble(orModelPrice["request"]),
+            image: _safeDouble(orModelPrice["image"]),
+            inputCacheRead: _safeDouble(orModelPrice["input_cache_read"]),
+            inputCacheWrite: _safeDouble(orModelPrice["input_cache_write"]),
+            webSearch: _safeDouble(orModelPrice["web_search"]),
+            internalReasoning: _safeDouble(orModelPrice["internal_reasoning"]));
+      } else {
+        // Handle missing/invalid orModelPrice (as before)
+        if (kDebugMode) {
+          print(
+              'Warning: pricing data missing or invalid for model $shortName');
+        }
+        pricing = LLMPricing(
+            prompt: 0.0,
+            completion: 0.0,
+            request: 0.0,
+            image: 0.0,
+            inputCacheRead: 0.0,
+            inputCacheWrite: 0.0,
+            webSearch: 0.0,
+            internalReasoning: 0.0);
+      }
+
       return LLModel(
-        id: permaslug,
-        name: shortName,
-        description: description,
-        provider: provider,
-        iconUrl: iconUrl,
-        supportsImageInput: modelCapabilities.supportsImageInput,
-        supportsImageOutput: modelCapabilities.supportsImageOutput,
-        supportsReasoningDisplay: endpoint["supports_reasoning"],
-        supportsReasoning: doesReasoning,
-        tunableParameters: supportedParams,
-      );
+          id: permaslug,
+          name: shortName,
+          description: description,
+          provider: provider,
+          iconUrl: iconUrl,
+          capabilities: capabilities,
+          pricing: pricing);
     } catch (e, stackTrace) {
       if (kDebugMode) {
         print('Stack trace: $stackTrace');
@@ -269,7 +313,7 @@ class AIProviderOpenrouter extends AIProvider {
     };
 
     // Prepare message content
-       List<Map<String, dynamic>> messages;
+    List<Map<String, dynamic>> messages;
     if (attachmentPaths != null && attachmentPaths.isNotEmpty) {
       // Add the text prompt if available
       List<Map<String, dynamic>> messageContent = [];
@@ -301,7 +345,10 @@ class AIProviderOpenrouter extends AIProvider {
       ];
     } else {
       messages = [
-        {'role': 'user', 'content': question} //content is now a normal string and *NOT* the attachment
+        {
+          'role': 'user',
+          'content': question
+        } //content is now a normal string and *NOT* the attachment
       ]; // Only text
     }
 
@@ -380,7 +427,7 @@ class AIProviderOpenrouter extends AIProvider {
     }
   }
 
-   @override
+  @override
   Future<BillingInfo?> fetchBilling() async {
     final apiKey = await _settingsService.getApiKey();
     if (apiKey == null) {
@@ -402,24 +449,28 @@ class AIProviderOpenrouter extends AIProvider {
 
         if (jsonResponse['data'] != null) {
           final data = jsonResponse['data'];
-      //    print(data);
+          //    print(data);
           final usage = (data['usage'] ?? 0).toDouble();
           final limit = (data['limit'] ?? 0).toDouble();
           final rateLimit = data['rate_limit']['requests'].toDouble() ?? 0.0;
-          return BillingInfo(
-            usage, limit, rateLimit
-          );
+          return BillingInfo(usage, limit, rateLimit);
         } else {
           print('Billing data not found in response.');
           return null;
         }
       } else {
-        print('Failed to fetch billing info. Status code: ${response.statusCode}, body: ${response.body}');
+        print(
+            'Failed to fetch billing info. Status code: ${response.statusCode}, body: ${response.body}');
         return null; // Or throw an exception depending on error handling strategy
       }
     } catch (e) {
       print('Error fetching billing info: $e');
       return null; // Or throw an exception
     }
+  }
+
+  @override
+  ProviderType type() {
+    return ProviderType.openrouter;
   }
 }

@@ -48,15 +48,16 @@ class _ModelSettingsSidebarState extends State<ModelSettingsSidebar> {
 
   @override
   Widget build(BuildContext context) {
-    final advancedParams = widget.model?.tunableParameters
+    final advancedParams = widget.model?.capabilities.tunableParameters
             .where((param) => !_commonParams.contains(param))
             .toList() ??
         [];
 
     // Filter _commonParams to ensure they are in the paramsList
     final filteredCommonParams = _commonParams
-        .where(
-            (param) => widget.model?.tunableParameters.contains(param) ?? false)
+        .where((param) =>
+            widget.model?.capabilities.tunableParameters.contains(param) ??
+            false)
         .toList();
 
     return Align(
@@ -111,9 +112,8 @@ class _ModelSettingsSidebarState extends State<ModelSettingsSidebar> {
   }
 
   Widget _buildAdvancedSection(List<String> params) {
-    final filteredParams = params
-        .where((param) => !_blackListedParams.contains(param))
-        .toList();
+    final filteredParams =
+        params.where((param) => !_blackListedParams.contains(param)).toList();
 
     return ExpansionTile(
       initiallyExpanded: _advancedExpanded,
@@ -159,7 +159,7 @@ class _ModelSettingsSidebarState extends State<ModelSettingsSidebar> {
           divisions: 20,
           onChanged: updateValue,
         );
-      
+
       case 'min_p':
         return _buildSlider(
           title: 'Min P',
@@ -238,7 +238,6 @@ class _ModelSettingsSidebarState extends State<ModelSettingsSidebar> {
           value: currentValue ?? false,
           onChanged: updateValue,
         );
-
 
       case 'seed':
         return _buildNumberInput(

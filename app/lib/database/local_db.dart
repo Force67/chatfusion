@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:monkeychat/database/attachments_collection.dart';
 import 'package:monkeychat/database/folder_collection.dart';
 import 'package:monkeychat/database/message_collection.dart';
-import 'package:monkeychat/models/folder.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/llm.dart';
@@ -79,6 +78,7 @@ class LocalDb {
         parent_id INTEGER,
         name TEXT NOT NULL,
         color_code TEXT NOT NULL, -- Hex color code
+        hashed_password TEXT, -- May be null, salted and encrypted
         created_at TEXT NOT NULL
       );
     ''');
@@ -131,6 +131,18 @@ class LocalDb {
       CREATE TABLE cached_models(
         model_id TEXT PRIMARY KEY,
         data TEXT NOT NULL,
+        cached_at TEXT NOT NULL
+      );
+    ''');
+
+    // This app supports having multiple platforms for the ai inference.
+    // For instance, Openrouter and ollama. This table encodes the configured
+    // providers with numeric ids.
+    await db.execute('''
+      CREATE TABLE model_platforms(
+        provider_id INTEGER PRIMARY KEY,
+        name TEXT NOT NULL,
+        shorthand TEXT NOT NULL,
         cached_at TEXT NOT NULL
       );
     ''');

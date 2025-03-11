@@ -13,6 +13,7 @@ class FolderCollection {
       'name': f.name,
       'parent_id': f.parentId, // passing "null" is fine, nullable column
       'color_code': f.hexColorCode,
+      'hashed_password': f.hashedPassword,
       'created_at': f.createdAt.toIso8601String(),
     });
 
@@ -43,6 +44,7 @@ class FolderCollection {
       {
         'name': f.name,
         'parent_id': f.parentId,
+        'hashed_password': f.hashedPassword,
         'created_at': f.createdAt.toIso8601String(),
       },
       where: 'id = ?',

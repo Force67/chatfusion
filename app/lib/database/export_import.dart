@@ -19,10 +19,6 @@ class ExportImport {
     final messagesCollection = await _localDb.messages;
     final attachmentsCollection = await _localDb.attachments;
 
-    if (attachmentsCollection == null) {
-      throw Exception('Attachments collection is not initialized');
-    }
-
     // Fetch chats only in the specified folder
     final chats = await folderCollection.getChatsInFolder(folderId);
     List<Map<String, dynamic>> exportData = [];
@@ -74,10 +70,6 @@ class ExportImport {
     final chatsCollection = await _localDb.chats;
     final messagesCollection = await _localDb.messages;
     final attachmentsCollection = await _localDb.attachments;
-
-    if (attachmentsCollection == null) {
-      throw Exception('Attachments collection is not initialized');
-    }
 
     final uuid = Uuid();
 
