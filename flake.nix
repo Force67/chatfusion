@@ -73,9 +73,6 @@
                 ${./app/linux/icons}/"''${size}x''${size}"/chatfusion.png \
                 $out/share/icons/hicolor/"''${size}x''${size}"/apps/chatfusion.png
             done
-
-            # Update desktop database
-            update-desktop-database $out/share/applications
           '';
 
           meta = with pkgs.lib; {
