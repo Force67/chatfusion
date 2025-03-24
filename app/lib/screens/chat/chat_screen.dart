@@ -1,22 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:monkeychat/models/folder.dart';
+import 'package:chatfusion/models/folder.dart';
 import 'dart:async';
 import 'dart:io'; // Import for File
 
-import 'package:monkeychat/screens/settings/settings_screen.dart';
-import 'package:monkeychat/screens/settings/settings_cubit.dart';
+import 'package:chatfusion/screens/settings/settings_screen.dart';
+import 'package:chatfusion/screens/settings/settings_cubit.dart';
 
-import 'package:monkeychat/database/local_db.dart';
+import 'package:chatfusion/database/local_db.dart';
 
-import 'package:monkeychat/models/message.dart';
-import 'package:monkeychat/services/model_service.dart';
-import 'package:monkeychat/widgets/chat_message.dart';
-import 'package:monkeychat/services/settings_service.dart';
-import 'package:monkeychat/services/ai_provider_or.dart';
-import 'package:monkeychat/widgets/model_selection_dialog.dart';
-import 'package:monkeychat/widgets/chat_list_sidebar.dart';
+import 'package:chatfusion/models/message.dart';
+import 'package:chatfusion/services/model_service.dart';
+import 'package:chatfusion/widgets/chat_message.dart';
+import 'package:chatfusion/services/settings_service.dart';
+import 'package:chatfusion/services/ai_provider_or.dart';
+import 'package:chatfusion/widgets/model_selection_dialog.dart';
+import 'package:chatfusion/widgets/chat_list_sidebar.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:monkeychat/widgets/model_settings_sidebar.dart';
+import 'package:chatfusion/widgets/model_settings_sidebar.dart';
 
 import 'chat_cubit.dart';
 import 'chat_state.dart';
@@ -168,7 +168,7 @@ class _ChatScreenState extends State<ChatScreen> {
         builder: (context, state) {
           return Scaffold(
             appBar: AppBar(
-              title: const Text('Monkeychat'),
+              title: const Text('ChatFusion'),
               actions: [
                 IconButton(
                   icon: const Icon(Icons.settings),

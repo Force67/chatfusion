@@ -1,4 +1,4 @@
-# monkeychat
+# chatfusion
 
 A new Flutter project.
 

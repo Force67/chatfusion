@@ -2,14 +2,14 @@
 import 'dart:async';
 import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart';
-import 'package:monkeychat/database/local_db.dart';
-import 'package:monkeychat/models/chat.dart';
-import 'package:monkeychat/models/folder.dart';
-import 'package:monkeychat/models/message.dart';
-import 'package:monkeychat/models/llm.dart';
+import 'package:chatfusion/database/local_db.dart';
+import 'package:chatfusion/models/chat.dart';
+import 'package:chatfusion/models/folder.dart';
+import 'package:chatfusion/models/message.dart';
+import 'package:chatfusion/models/llm.dart';
 import 'package:file_picker/file_picker.dart';
-import 'package:monkeychat/services/model_service.dart';
-import 'package:monkeychat/services/ai_provider.dart';
+import 'package:chatfusion/services/model_service.dart';
+import 'package:chatfusion/services/ai_provider.dart';
 import 'dart:io';
 
 import "chat_state.dart";

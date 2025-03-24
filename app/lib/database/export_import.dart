@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
-import 'package:monkeychat/database/local_db.dart';
-import 'package:monkeychat/models/attachment.dart';
-import 'package:monkeychat/models/chat.dart';
-import 'package:monkeychat/models/message.dart';
+import 'package:chatfusion/database/local_db.dart';
+import 'package:chatfusion/models/attachment.dart';
+import 'package:chatfusion/models/chat.dart';
+import 'package:chatfusion/models/message.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:uuid/uuid.dart';
 

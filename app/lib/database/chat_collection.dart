@@ -1,4 +1,4 @@
-import 'package:monkeychat/models/chat.dart';
+import 'package:chatfusion/models/chat.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:convert';
 

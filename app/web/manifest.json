@@ -1,6 +1,6 @@
 {
-    "name": "monkeychat",
-    "short_name": "monkeychat",
+    "name": "chatfusion",
+    "short_name": "chatfusion",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

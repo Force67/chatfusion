@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:monkeychat/screens/settings/settings_cubit.dart';
-import 'package:monkeychat/screens/settings/settings_state.dart';
+import 'package:chatfusion/screens/settings/settings_cubit.dart';
+import 'package:chatfusion/screens/settings/settings_state.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -34,7 +34,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('App Settings', style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text('App Settings',
+            style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: Theme.of(context).primaryColor,
         elevation: 0,
@@ -74,14 +75,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         controller: _apiKeyController,
                         decoration: InputDecoration(
                           labelText: 'OpenRouter API Key',
-                          labelStyle: TextStyle(color: Theme.of(context).hintColor),
+                          labelStyle:
+                              TextStyle(color: Theme.of(context).hintColor),
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Theme.of(context).primaryColor),
+                            borderSide: BorderSide(
+                                color: Theme.of(context).primaryColor),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: Theme.of(context).primaryColor, width: 2),
+                            borderSide: BorderSide(
+                                color: Theme.of(context).primaryColor,
+                                width: 2),
                           ),
                         ),
                         validator: (value) {
@@ -103,7 +108,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                         siteUrl: _siteUrlController.text,
                                         siteName: _siteNameController.text,
                                       );
-                                   Navigator.pop(context); //Pop context on save
+                                  Navigator.pop(context); //Pop context on save
                                 }
                               },
                         style: ElevatedButton.styleFrom(
@@ -115,7 +120,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         child: const Text(
                           'Save Settings',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -134,7 +140,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         child: const Text(
                           'Erase Settings',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                       ),
                       const SizedBox(height: 16),
@@ -142,7 +149,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         onPressed: state.isLoading
                             ? null
                             : () {
-                                context.read<SettingsCubit>().clearChatDatabase();
+                                context
+                                    .read<SettingsCubit>()
+                                    .clearChatDatabase();
                               },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orangeAccent,
@@ -153,7 +162,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                         child: const Text(
                           'Erase Chat Database',
-                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],

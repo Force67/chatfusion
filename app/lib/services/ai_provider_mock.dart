@@ -1,4 +1,4 @@
-import 'package:monkeychat/models/llm.dart';
+import 'package:chatfusion/models/llm.dart';
 
 import 'ai_provider.dart';
 

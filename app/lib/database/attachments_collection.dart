@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:monkeychat/models/attachment.dart';
+import 'package:chatfusion/models/attachment.dart';
 import 'package:sqflite/sqflite.dart';
 import 'dart:io'; // For file operations
 

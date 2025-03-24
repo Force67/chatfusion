@@ -1,4 +1,4 @@
-package com.devforce.monkeychat
+package com.devforce.chatfusion
 
 import io.flutter.embedding.android.FlutterActivity
 

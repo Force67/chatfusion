@@ -1,7 +1,7 @@
 import 'package:bloc/bloc.dart';
-import 'package:monkeychat/services/settings_service.dart';
-import 'package:monkeychat/screens/settings/settings_state.dart';
-import 'package:monkeychat/database/local_db.dart';
+import 'package:chatfusion/services/settings_service.dart';
+import 'package:chatfusion/screens/settings/settings_state.dart';
+import 'package:chatfusion/database/local_db.dart';
 
 class SettingsCubit extends Cubit<SettingsState> {
   SettingsCubit() : super(const SettingsState());

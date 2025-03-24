@@ -1,4 +1,4 @@
-import 'package:monkeychat/models/message.dart';
+import 'package:chatfusion/models/message.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:io'; // For File operations

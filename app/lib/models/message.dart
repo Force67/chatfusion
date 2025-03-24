@@ -1,4 +1,4 @@
-import 'package:monkeychat/models/attachment.dart';
+import 'package:chatfusion/models/attachment.dart';
 
 enum MessageType { user, bot, system }
 

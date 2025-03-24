@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.devforce" "\0"
-            VALUE "FileDescription", "monkeychat" "\0"
+            VALUE "FileDescription", "chatfusion" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "monkeychat" "\0"
+            VALUE "InternalName", "chatfusion" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 com.devforce. All rights reserved." "\0"
-            VALUE "OriginalFilename", "monkeychat.exe" "\0"
-            VALUE "ProductName", "monkeychat" "\0"
+            VALUE "OriginalFilename", "chatfusion.exe" "\0"
+            VALUE "ProductName", "chatfusion" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

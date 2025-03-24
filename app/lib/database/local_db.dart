@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
-import 'package:monkeychat/database/attachments_collection.dart';
-import 'package:monkeychat/database/folder_collection.dart';
-import 'package:monkeychat/database/message_collection.dart';
+import 'package:chatfusion/database/attachments_collection.dart';
+import 'package:chatfusion/database/folder_collection.dart';
+import 'package:chatfusion/database/message_collection.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 import '../models/llm.dart';

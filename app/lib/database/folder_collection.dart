@@ -1,5 +1,5 @@
-import 'package:monkeychat/models/chat.dart';
-import 'package:monkeychat/models/folder.dart';
+import 'package:chatfusion/models/chat.dart';
+import 'package:chatfusion/models/folder.dart';
 import 'package:sqflite/sqflite.dart';
 
 class FolderCollection {

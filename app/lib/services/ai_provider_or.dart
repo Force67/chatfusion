@@ -4,8 +4,8 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:mime/mime.dart';
 
-import 'package:monkeychat/services/ai_provider.dart';
-import 'package:monkeychat/services/settings_service.dart';
+import 'package:chatfusion/services/ai_provider.dart';
+import 'package:chatfusion/services/settings_service.dart';
 import '../database/local_db.dart';
 import '../models/llm.dart';
 
