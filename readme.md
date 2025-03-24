@@ -1,17 +1,19 @@
-<div align="center">
-  <div style="display: flex; align-items: center; gap: 2rem; margin-bottom: 1rem;">
-    <img src="./app/linux/icons/256x256/chatfusion.png?raw=true" alt="ChatFusion Logo" width="80" style="margin-right: 20px;">
-    
-    <div>
-      <h1 style="margin: 0; font-size: 2.5rem;">ChatFusion</h1>
-      <p style="margin-top: 0.5rem;">
+<table>
+  <tr>
+    <td><img src="./app/linux/icons/256x256/chatfusion.png?raw=true" alt="ChatFusion Logo" width="80"></td>
+    <td>
+      <h1 style="display: inline-block;">ChatFusion</h1>
+      <p>
         <a href="https://github.com/Force67/chatfusion/actions/workflows/build.yml">
-          <img src="https://img.shields.io/github/actions/workflow/status/Force67/chatfusion/build.yml?logo=linux&label=Linux" alt="Build Status">
+          <img src="https://img.shields.io/github/actions/workflow/status/Force67/chatfusion/build.yml?logo=linux&label=Linux" alt="Linux Build Status">
+        </a>
+        <a href="https://github.com/Force67/chatfusion/actions/workflows/build.yml">
+          <img src="https://img.shields.io/github/actions/workflow/status/Force67/chatfusion/build.yml?logo=android&label=Android" alt="Android Build Status">
         </a>
       </p>
-    </div>
-  </div>
-</div>
+    </td>
+  </tr>
+</table>
 
 Pretty cool AI chat frontend for power users.
 

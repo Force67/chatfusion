@@ -23,6 +23,18 @@
           };
         };
 
+        desktopItem = pkgs.makeDesktopItem {
+          name = "chatfusion";
+          exec = "chatfusion";
+          icon = "chatfusion";
+          comment = "AI chat frontend for power users";
+          desktopName = "ChatFusion";
+          categories = [
+            "Utility"
+            "Chat"
+          ];
+        };
+
         # For nix install via flake input.
         flutter-app = pkgs.flutter.buildFlutterApplication {
           pname = "chatfusion";
@@ -53,14 +65,17 @@
           postInstall = ''
             # Install desktop file
             mkdir -p $out/share/applications
-            install -Dm644 ${./app/linux/chatfusion.desktop} $out/share/applications/chatfusion.desktop
+            install -Dm644 ${desktopItem}/share/applications/* $out/share/applications
 
             # Install icons
-            for size in 64 128 256; do
+            for size in 16 22 24 32 48 64 128 256; do
               install -Dm644 \
                 ${./app/linux/icons}/"''${size}x''${size}"/chatfusion.png \
                 $out/share/icons/hicolor/"''${size}x''${size}"/apps/chatfusion.png
             done
+
+            # Update desktop database
+            update-desktop-database $out/share/applications
           '';
 
           meta = with pkgs.lib; {
