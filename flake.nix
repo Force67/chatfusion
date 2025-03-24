@@ -68,7 +68,7 @@
             install -Dm644 ${desktopItem}/share/applications/* $out/share/applications
 
             # Install icons
-            for size in 16 22 24 32 48 64 128 256; do
+            for size in 64 128 256; do
               install -Dm644 \
                 ${./app/linux/icons}/"''${size}x''${size}"/chatfusion.png \
                 $out/share/icons/hicolor/"''${size}x''${size}"/apps/chatfusion.png
