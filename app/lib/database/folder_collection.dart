@@ -7,6 +7,21 @@ class FolderCollection {
 
   FolderCollection(this.db);
 
+  Future<bool> createTable() async {
+    // Parent_id is optional
+    await db.execute('''
+      CREATE TABLE folders(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        parent_id INTEGER,
+        name TEXT NOT NULL,
+        color_code TEXT NOT NULL, -- Hex color code
+        hashed_password TEXT, -- May be null, salted and encrypted
+        created_at TEXT NOT NULL
+      );
+    ''');
+    return true;
+  }
+
   Future<int> add(Folder f) async {
     //await _validateParent(f.parentId);
     final id = await db.insert('folders', {
