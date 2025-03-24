@@ -305,11 +305,15 @@ class AIProviderOpenrouter extends AIProvider {
       return;
     }
 
+    // strip the question of null terminators and other control characters
+    question = question.replaceAll(RegExp(r'[\x00-\x1F\x7F-\x9F]'), '');
+
     print('Params: $params');
 
     final headers = {
       'Authorization': 'Bearer $apiKey',
       'Content-Type': 'application/json',
+      'X-Title': 'ChatFusion',
     };
 
     // Prepare message content

@@ -285,6 +285,9 @@ class ChatCubit extends Cubit<ChatState> {
     for (var settingName
         in state.selectedModel!.capabilities.tunableParameters) {
       newModelSettings[settingName] = _findDefaultValueForParam(settingName);
+      if (kDebugMode)
+        print(
+            "Setting $settingName to ${newModelSettings[settingName]}"); // Debug
     }
 
     final newChat = Chat(
@@ -302,6 +305,7 @@ class ChatCubit extends Cubit<ChatState> {
     emit(state.copyWith(
         currentChatId: chatId,
         isNewChat: false,
+        modelSettings: newModelSettings,
         isThinking: false)); // Clear thinking when new cat is created
   }
 

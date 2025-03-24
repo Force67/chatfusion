@@ -171,19 +171,17 @@ class LocalDb {
     }
   }
 
-  // Updated clear methods to handle schema changes
   Future<void> clearAll({bool deleteFolders = true}) async {
-    //TODO: replace Placeholder boolean and actual implementation in GUI
     final db = await instance.database;
     await db.transaction((txn) async {
-      // 2. Delete all chats and messages
-      await txn.delete('chats');
+      // Delete in reverse dependency order
+      await txn.delete('attachments');
       await txn.delete('messages');
+      await txn.delete('chats');
       await txn.delete('cached_models');
 
-      // 3. Optionally delete all folders
+      // Folders should be deleted last after their children
       if (deleteFolders) {
-        // Ensure you delete from 'folders' AFTER deleting relationships from 'folders_to_chats'
         await txn.delete('folders');
       }
     });
@@ -192,8 +190,9 @@ class LocalDb {
   Future<void> clearChats() async {
     final db = await instance.database;
     await db.transaction((txn) async {
-      await txn.delete('chats');
+      await txn.delete('attachments');
       await txn.delete('messages');
+      await txn.delete('chats');
     });
   }
 
