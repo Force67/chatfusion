@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=ChatFusion
+Comment=Your Awesome Chat Application
+Exec=chatfusion
+Icon=chatfusion
+Terminal=false
+Type=Application
+Categories=Network;InstantMessaging;
+StartupWMClass=chatfusion

@@ -6,8 +6,14 @@
     flake-utils.url = "github:numtide/flake-utils";
   };
 
-  outputs = { self, nixpkgs, flake-utils }:
-    flake-utils.lib.eachDefaultSystem (system:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      flake-utils,
+    }:
+    flake-utils.lib.eachDefaultSystem (
+      system:
       let
         pkgs = import nixpkgs {
           inherit system;
@@ -17,11 +23,50 @@
           };
         };
 
+        # For nix install via flake input.
+        flutter-app = pkgs.flutter.buildFlutterApplication {
+          pname = "chatfusion";
+          version = "1.0.0";
+          src = ./app;
+          flutterBuildFlags = [ "--release" ];
+          pubspecLock = nixpkgs.lib.importJSON ./app/pubspec.lock.json;
+
+          nativeBuildInputs = with pkgs; [
+            pkg-config
+          ];
+
+          buildInputs = with pkgs; [
+            gtk3
+            glib
+            gdk-pixbuf
+            pango
+            cairo
+            atk
+            harfbuzz
+            libepoxy
+            sqlite
+            xorg.libX11
+            libGL
+            zlib
+          ];
+
+          meta = with pkgs.lib; {
+            description = "ChatFusion - Chat with LLMs";
+            homepage = "https://github.com/Force67/chatfusion";
+            license = licenses.gpl3;
+            platforms = platforms.linux;
+          };
+
+        };
+
         androidComposition = pkgs.androidenv.composeAndroidPackages {
           toolsVersion = "26.1.1";
           platformToolsVersion = "34.0.4";
           buildToolsVersions = [ "34.0.0" ];
-          platformVersions = [ "34" "35" ];
+          platformVersions = [
+            "34"
+            "35"
+          ];
           includeEmulator = false;
           includeSources = true;
           includeSystemImages = false;
@@ -35,21 +80,24 @@
           ];
         };
 
-        runtimeLibs = pkgs.lib.makeLibraryPath (with pkgs; [
-          zlib
-          glib
-          gtk3
-          pango
-          cairo
-          gdk-pixbuf
-          atk
-          harfbuzz
-          libepoxy
-          libGL
-          xorg.libX11
-          sqlite
-          glibc
-        ]);
+        runtimeLibs = pkgs.lib.makeLibraryPath (
+          with pkgs;
+          [
+            zlib
+            glib
+            gtk3
+            pango
+            cairo
+            gdk-pixbuf
+            atk
+            harfbuzz
+            libepoxy
+            libGL
+            xorg.libX11
+            sqlite
+            glibc
+          ]
+        );
 
         clangEnv = pkgs.buildEnv {
           name = "clang-env";
@@ -63,6 +111,8 @@
 
       in
       {
+        packages.default = flutter-app;
+
         devShell = pkgs.mkShell {
           NIX_ENFORCE_PURITY = 1;
 
