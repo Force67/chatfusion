@@ -50,6 +50,19 @@
             zlib
           ];
 
+          postInstall = ''
+            # Install desktop file
+            mkdir -p $out/share/applications
+            install -Dm644 ${./app/linux/chatfusion.desktop} $out/share/applications/chatfusion.desktop
+
+            # Install icons
+            for size in 64 128 256; do
+              install -Dm644 \
+                ${./app/linux/icons}/"''${size}x''${size}"/chatfusion.png \
+                $out/share/icons/hicolor/"''${size}x''${size}"/apps/chatfusion.png
+            done
+          '';
+
           meta = with pkgs.lib; {
             description = "ChatFusion - Chat with LLMs";
             homepage = "https://github.com/Force67/chatfusion";

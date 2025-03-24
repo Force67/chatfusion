@@ -1,8 +1,20 @@
-## ChatFusion
+<div align="center">
+  <div style="display: flex; align-items: center; gap: 2rem; margin-bottom: 1rem;">
+    <img src="./app/linux/icons/256x256/chatfusion.png?raw=true" alt="ChatFusion Logo" width="80" style="margin-right: 20px;">
+    
+    <div>
+      <h1 style="margin: 0; font-size: 2.5rem;">ChatFusion</h1>
+      <p style="margin-top: 0.5rem;">
+        <a href="https://github.com/Force67/chatfusion/actions/workflows/build.yml">
+          <img src="https://img.shields.io/github/actions/workflow/status/Force67/chatfusion/build.yml?logo=linux&label=Linux" alt="Build Status">
+        </a>
+      </p>
+    </div>
+  </div>
+</div>
 
 Pretty cool AI chat frontend for power users.
 
-As someone who uses AI a lot, i wanted to have a frontend for chatting with LLMs that doesn't suck. For me that includes:
 
 - [x] Privacy first, no data is stored on any servers.
 - [ ] Chat with multiple backends
